@@ -1,16 +1,15 @@
 import { Stack } from "expo-router"
+import { StatusBar } from "expo-status-bar"
+import { AuthProvider } from "../src/context/AuthContext"
 
 export default function RootLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: {
-          backgroundColor: "#fff",
-        },
-        animation: "fade_from_bottom",
-        animationDuration: 400,
-      }}
-    />
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+      <StatusBar style="dark" />
+    </AuthProvider>
   )
 }
