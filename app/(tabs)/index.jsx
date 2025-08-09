@@ -20,7 +20,6 @@ export default function AccountsScreen() {
   const loadAccounts = async () => {
     try {
       const result = await accountService.getAccounts()
-      console.log("Accounts loaded:", result)
 
       if (result.success) {
         setAccounts(result.data.accounts || [])

@@ -19,8 +19,7 @@ export const accountService = {
   createAccount: async (accountData) => {
     try {
       const headers = await getAuthHeaders()
-      console.log("Creating account with data:", accountData)
-      console.log("Using headers:", headers)
+
       if (!accountData.name || !accountData.type || !accountData.balance) {
         return {
           success: false,

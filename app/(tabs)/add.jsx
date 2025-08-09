@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native"
 import { useAccountsContext } from "../../src/context/AccountContext"
+import { useCategoryContext } from "../../src/context/CategoryContext"
 import styles from "../../src/styles/add"
 
 export default function AddTransactionScreen() {
@@ -28,6 +29,13 @@ export default function AddTransactionScreen() {
     note: "",
   })
   const {
+    expenseCategories,
+    incomeCategories,
+    loading: categoriesLoading,
+    error: categoriesError,
+  } = useCategoryContext()
+
+  const {
     accounts,
     loading: accountsLoading,
     refreshAccounts,
@@ -39,7 +47,18 @@ export default function AddTransactionScreen() {
   const [showToAccountModal, setShowToAccountModal] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showDateModal, setShowDateModal] = useState(false)
-
+  const resetForm = useCallback(() => {
+    setFormData({
+      type: "expense",
+      description: "",
+      amount: "",
+      fromAccount: "",
+      toAccount: "",
+      category: "",
+      date: new Date().toISOString().slice(0, 10),
+      note: "",
+    })
+  }, [])
   // Transaction Types
   const transactionTypes = useMemo(
     () => [
@@ -83,96 +102,6 @@ export default function AddTransactionScreen() {
   )
 
   // Categories based on transaction type
-  const expenseCategories = useMemo(
-    () => [
-      {
-        id: "food",
-        label: "Food & Dining",
-        icon: "restaurant-outline",
-        color: "#FF9F43",
-      },
-      {
-        id: "shopping",
-        label: "Shopping",
-        icon: "bag-outline",
-        color: "#54A0FF",
-      },
-      {
-        id: "transport",
-        label: "Transport",
-        icon: "car-outline",
-        color: "#45B7D1",
-      },
-      {
-        id: "bills",
-        label: "Bills & Utilities",
-        icon: "document-text-outline",
-        color: "#FF6B6B",
-      },
-      {
-        id: "entertainment",
-        label: "Entertainment",
-        icon: "musical-notes-outline",
-        color: "#A55EEA",
-      },
-      {
-        id: "health",
-        label: "Healthcare",
-        icon: "medical-outline",
-        color: "#26DE81",
-      },
-      {
-        id: "education",
-        label: "Education",
-        icon: "book-outline",
-        color: "#FD79A8",
-      },
-      {
-        id: "others",
-        label: "Others",
-        icon: "ellipsis-horizontal-outline",
-        color: "#636E72",
-      },
-    ],
-    []
-  )
-
-  const incomeCategories = useMemo(
-    () => [
-      { id: "salary", label: "Salary", icon: "card-outline", color: "#1CC29F" },
-      {
-        id: "freelance",
-        label: "Freelance",
-        icon: "laptop-outline",
-        color: "#00CEC9",
-      },
-      {
-        id: "investment",
-        label: "Investment",
-        icon: "trending-up-outline",
-        color: "#6C5CE7",
-      },
-      {
-        id: "gift",
-        label: "Gift Received",
-        icon: "gift-outline",
-        color: "#FD79A8",
-      },
-      {
-        id: "refund",
-        label: "Refund",
-        icon: "refresh-outline",
-        color: "#FDCB6E",
-      },
-      {
-        id: "others",
-        label: "Others",
-        icon: "ellipsis-horizontal-outline",
-        color: "#636E72",
-      },
-    ],
-    []
-  )
 
   const categories =
     formData.type === "expense"
@@ -232,6 +161,8 @@ export default function AddTransactionScreen() {
         note: formData.note.trim(),
       }
 
+      console.log("Transaction Data:", transactionData)
+
       Alert.alert(
         "Success",
         `${
@@ -244,6 +175,9 @@ export default function AddTransactionScreen() {
           },
         ]
       )
+      // Call API to save transaction
+
+      resetForm()
     } catch (error) {
       Alert.alert("Error", "Failed to add transaction. Please try again.")
     } finally {
@@ -294,7 +228,7 @@ export default function AddTransactionScreen() {
   const getSelectedToAccount = () =>
     accountOptions.find((acc) => acc.id === formData.toAccount)
   const getSelectedCategory = () =>
-    categories.find((cat) => cat.id === formData.category)
+    categories.find((cat) => cat._id === formData.category)
 
   const getTypeColor = () => getSelectedType()?.color || "#1CC29F"
 
@@ -782,6 +716,7 @@ export default function AddTransactionScreen() {
                       ]}
                       onPress={() => {
                         updateFormData("toAccount", account.id)
+                        console.log("Selected To Account:", account)
                         setShowToAccountModal(false)
                       }}
                     >
@@ -839,14 +774,14 @@ export default function AddTransactionScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {categories.map((category) => (
                   <TouchableOpacity
-                    key={category.id}
+                    key={category._id}
                     style={[
                       styles.modalOption,
-                      formData.category === category.id &&
+                      formData.category === category._id &&
                         styles.modalOptionActive,
                     ]}
                     onPress={() => {
-                      updateFormData("category", category.id)
+                      updateFormData("category", category._id)
                       setShowCategoryModal(false)
                     }}
                   >
@@ -867,7 +802,7 @@ export default function AddTransactionScreen() {
                         {category.label}
                       </Text>
                     </View>
-                    {formData.category === category.id && (
+                    {formData.category === category._id && (
                       <Ionicons
                         name="checkmark-circle"
                         size={24}

@@ -24,7 +24,7 @@ export const AccountsProvider = ({ children }) => {
           initialBalance: account.intitialBalance,
           createdAt: account.createdAt,
         }))
-        console.log("In account Context:: ", transformedAccounts)
+
         setAccounts(transformedAccounts)
       }
     } catch (error) {

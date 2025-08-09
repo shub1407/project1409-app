@@ -15,7 +15,7 @@ export default function Index() {
       </View>
     )
   }
-  console.log(isAuthenticated)
+
   // Redirect based on authentication status
   return isAuthenticated ? (
     <Redirect href="/(tabs)" />

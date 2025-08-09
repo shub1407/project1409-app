@@ -14,6 +14,7 @@ export default StyleSheet.create({
   header: {
     paddingHorizontal: 24,
     paddingTop: 20,
+    marginBottom: 20,
     paddingBottom: 24,
     flexDirection: "row",
     justifyContent: "space-between",
