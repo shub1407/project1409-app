@@ -1,426 +1,921 @@
 import { Ionicons } from "@expo/vector-icons"
-import axios from "axios"
 import { router } from "expo-router"
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
+  ActivityIndicator,
   Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native"
+import { useAccountsContext } from "../../src/context/AccountContext"
+import styles from "../../src/styles/add"
 
-export default function AddExpenseScreen() {
-  const [transactionType, setTransactionType] = useState("expense") // expense or income
-  const [amount, setAmount] = useState("")
-  const [description, setDescription] = useState("")
-  const [category, setCategory] = useState("")
+export default function AddTransactionScreen() {
+  const [formData, setFormData] = useState({
+    type: "expense",
+    description: "",
+    amount: "",
+    fromAccount: "",
+    toAccount: "",
+    category: "",
+    date: new Date().toISOString().slice(0, 10),
+    note: "",
+  })
+  const {
+    accounts,
+    loading: accountsLoading,
+    refreshAccounts,
+    error: accountsError,
+  } = useAccountsContext()
   const [loading, setLoading] = useState(false)
+  const [showTypeModal, setShowTypeModal] = useState(false)
+  const [showFromAccountModal, setShowFromAccountModal] = useState(false)
+  const [showToAccountModal, setShowToAccountModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [showDateModal, setShowDateModal] = useState(false)
 
-  const expenseCategories = [
-    { name: "Food", icon: "restaurant-outline", color: "#FF6B6B" },
-    { name: "Transport", icon: "car-outline", color: "#4ECDC4" },
-    { name: "Entertainment", icon: "musical-notes-outline", color: "#45B7D1" },
-    { name: "Shopping", icon: "bag-outline", color: "#FECA57" },
-    { name: "Bills", icon: "document-text-outline", color: "#FF9FF3" },
-    { name: "Health", icon: "medical-outline", color: "#A8E6CF" },
-    { name: "Education", icon: "book-outline", color: "#FFB6C1" },
-    { name: "Others", icon: "ellipsis-horizontal-outline", color: "#DDA0DD" },
-  ]
+  // Transaction Types
+  const transactionTypes = useMemo(
+    () => [
+      {
+        value: "expense",
+        label: "Expense",
+        icon: "trending-down",
+        color: "#FF6B6B",
+        description: "Money spent",
+      },
+      {
+        value: "income",
+        label: "Income",
+        icon: "trending-up",
+        color: "#1CC29F",
+        description: "Money received",
+      },
+      {
+        value: "transfer",
+        label: "Transfer",
+        icon: "swap-horizontal",
+        color: "#45B7D1",
+        description: "Move between accounts",
+      },
+    ],
+    []
+  )
 
-  const incomeCategories = [
-    { name: "Salary", icon: "card-outline", color: "#1CC29F" },
-    { name: "Freelance", icon: "laptop-outline", color: "#36CFC9" },
-    { name: "Investment", icon: "trending-up-outline", color: "#95DE64" },
-    { name: "Gift", icon: "gift-outline", color: "#FFD666" },
-    { name: "Others", icon: "ellipsis-horizontal-outline", color: "#B37FEB" },
-  ]
+  // Bank Accounts
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((account) => ({
+        id: account.id,
+        label: account.name,
+        icon: account.icon || "wallet-outline",
+        color: account.color || "#1CC29F",
+        balance: account.balance,
+        type: account.type,
+      })),
+    [accounts]
+  )
+
+  // Categories based on transaction type
+  const expenseCategories = useMemo(
+    () => [
+      {
+        id: "food",
+        label: "Food & Dining",
+        icon: "restaurant-outline",
+        color: "#FF9F43",
+      },
+      {
+        id: "shopping",
+        label: "Shopping",
+        icon: "bag-outline",
+        color: "#54A0FF",
+      },
+      {
+        id: "transport",
+        label: "Transport",
+        icon: "car-outline",
+        color: "#45B7D1",
+      },
+      {
+        id: "bills",
+        label: "Bills & Utilities",
+        icon: "document-text-outline",
+        color: "#FF6B6B",
+      },
+      {
+        id: "entertainment",
+        label: "Entertainment",
+        icon: "musical-notes-outline",
+        color: "#A55EEA",
+      },
+      {
+        id: "health",
+        label: "Healthcare",
+        icon: "medical-outline",
+        color: "#26DE81",
+      },
+      {
+        id: "education",
+        label: "Education",
+        icon: "book-outline",
+        color: "#FD79A8",
+      },
+      {
+        id: "others",
+        label: "Others",
+        icon: "ellipsis-horizontal-outline",
+        color: "#636E72",
+      },
+    ],
+    []
+  )
+
+  const incomeCategories = useMemo(
+    () => [
+      { id: "salary", label: "Salary", icon: "card-outline", color: "#1CC29F" },
+      {
+        id: "freelance",
+        label: "Freelance",
+        icon: "laptop-outline",
+        color: "#00CEC9",
+      },
+      {
+        id: "investment",
+        label: "Investment",
+        icon: "trending-up-outline",
+        color: "#6C5CE7",
+      },
+      {
+        id: "gift",
+        label: "Gift Received",
+        icon: "gift-outline",
+        color: "#FD79A8",
+      },
+      {
+        id: "refund",
+        label: "Refund",
+        icon: "refresh-outline",
+        color: "#FDCB6E",
+      },
+      {
+        id: "others",
+        label: "Others",
+        icon: "ellipsis-horizontal-outline",
+        color: "#636E72",
+      },
+    ],
+    []
+  )
 
   const categories =
-    transactionType === "expense" ? expenseCategories : incomeCategories
+    formData.type === "expense"
+      ? expenseCategories
+      : formData.type === "income"
+      ? incomeCategories
+      : []
 
-  const handleSubmit = async () => {
-    if (!amount || !description || !category) {
-      Alert.alert("Error", "Please fill in all fields")
+  const handleSave = useCallback(async () => {
+    // Validation
+    if (!formData.description.trim()) {
+      Alert.alert("Error", "Please enter description")
       return
     }
 
-    if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+    if (!formData.amount || isNaN(parseFloat(formData.amount))) {
       Alert.alert("Error", "Please enter a valid amount")
+      return
+    }
+
+    if (!formData.fromAccount) {
+      Alert.alert(
+        "Error",
+        `Please select ${formData.type === "transfer" ? "from" : ""} account`
+      )
+      return
+    }
+
+    if (formData.type === "transfer" && !formData.toAccount) {
+      Alert.alert("Error", "Please select destination account")
+      return
+    }
+
+    if (
+      formData.type === "transfer" &&
+      formData.fromAccount === formData.toAccount
+    ) {
+      Alert.alert("Error", "From and To accounts cannot be the same")
+      return
+    }
+
+    if (formData.type !== "transfer" && !formData.category) {
+      Alert.alert("Error", "Please select category")
       return
     }
 
     setLoading(true)
     try {
-      const response = await axios.post("your-api-endpoint/transactions", {
-        type: transactionType,
-        amount: parseFloat(amount),
-        description,
-        category,
-        date: new Date().toISOString(),
-      })
-
-      if (response.status === 200 || response.status === 201) {
-        Alert.alert(
-          "Success",
-          `${
-            transactionType === "expense" ? "Expense" : "Income"
-          } added successfully!`,
-          [{ text: "OK", onPress: () => router.back() }]
-        )
+      const transactionData = {
+        type: formData.type,
+        description: formData.description.trim(),
+        amount: parseFloat(formData.amount),
+        fromAccount: formData.fromAccount,
+        toAccount: formData.toAccount || null,
+        category: formData.category || null,
+        date: formData.date,
+        note: formData.note.trim(),
       }
+
+      Alert.alert(
+        "Success",
+        `${
+          formData.type.charAt(0).toUpperCase() + formData.type.slice(1)
+        } added successfully!`,
+        [
+          {
+            text: "OK",
+            onPress: () => router.back(),
+          },
+        ]
+      )
     } catch (error) {
       Alert.alert("Error", "Failed to add transaction. Please try again.")
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
-  }
+  }, [formData])
 
-  const formatAmount = (text) => {
-    // Remove any non-digit characters except decimal point
-    const cleaned = text.replace(/[^\d.]/g, "")
-    setAmount(cleaned)
-  }
+  const handleCancel = useCallback(() => {
+    const hasChanges = formData.description || formData.amount || formData.note
+    if (hasChanges) {
+      Alert.alert(
+        "Discard Changes?",
+        "Are you sure you want to discard your changes?",
+        [
+          { text: "Keep Editing", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => router.back(),
+          },
+        ]
+      )
+    } else {
+      router.back()
+    }
+  }, [formData])
+
+  const updateFormData = useCallback((key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === "type" && { category: "", toAccount: "" }),
+    }))
+  }, [])
+
+  const formatAmount = useCallback(
+    (text) => {
+      const cleaned = text.replace(/[^\d.]/g, "")
+      updateFormData("amount", cleaned)
+    },
+    [updateFormData]
+  )
+
+  const getSelectedType = () =>
+    transactionTypes.find((type) => type.value === formData.type)
+  const getSelectedFromAccount = () =>
+    accountOptions.find((acc) => acc.id === formData.fromAccount)
+  const getSelectedToAccount = () =>
+    accountOptions.find((acc) => acc.id === formData.toAccount)
+  const getSelectedCategory = () =>
+    categories.find((cat) => cat.id === formData.category)
+
+  const getTypeColor = () => getSelectedType()?.color || "#1CC29F"
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
+      <StatusBar barStyle="light-content" backgroundColor={getTypeColor()} />
       <SafeAreaView style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Dynamic Header Color */}
+        <View style={[styles.header, { backgroundColor: getTypeColor() }]}>
           <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
+            onPress={handleCancel}
+            style={styles.headerButton}
+            disabled={loading}
           >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+            <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Transaction</Text>
-          <View style={{ width: 24 }} />
+          <Text style={styles.headerTitle}>
+            Add {getSelectedType()?.label || "Transaction"}
+          </Text>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={[
+              styles.headerButton,
+              loading && styles.headerButtonDisabled,
+            ]}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Transaction Type Toggle */}
-          <View style={styles.toggleContainer}>
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Transaction Type Selector */}
+          <View style={styles.section}>
             <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                transactionType === "expense" && styles.toggleButtonActive,
-                {
-                  backgroundColor:
-                    transactionType === "expense" ? "#FF6B6B" : "#FFFFFF",
-                },
-              ]}
-              onPress={() => {
-                setTransactionType("expense")
-                setCategory("") // Reset category when switching
-              }}
+              style={[styles.selectorCard, { borderColor: getTypeColor() }]}
+              onPress={() => setShowTypeModal(true)}
             >
-              <Ionicons
-                name="trending-down"
-                size={20}
-                color={transactionType === "expense" ? "#FFFFFF" : "#FF6B6B"}
-              />
-              <Text
-                style={[
-                  styles.toggleButtonText,
-                  {
-                    color:
-                      transactionType === "expense" ? "#FFFFFF" : "#FF6B6B",
-                  },
-                ]}
-              >
-                Expense
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                transactionType === "income" && styles.toggleButtonActive,
-                {
-                  backgroundColor:
-                    transactionType === "income" ? "#1CC29F" : "#FFFFFF",
-                },
-              ]}
-              onPress={() => {
-                setTransactionType("income")
-                setCategory("") // Reset category when switching
-              }}
-            >
-              <Ionicons
-                name="trending-up"
-                size={20}
-                color={transactionType === "income" ? "#FFFFFF" : "#1CC29F"}
-              />
-              <Text
-                style={[
-                  styles.toggleButtonText,
-                  {
-                    color: transactionType === "income" ? "#FFFFFF" : "#1CC29F",
-                  },
-                ]}
-              >
-                Income
-              </Text>
+              <View style={styles.selectorLeft}>
+                <View
+                  style={[
+                    styles.iconContainer,
+                    { backgroundColor: `${getTypeColor()}20` },
+                  ]}
+                >
+                  <Ionicons
+                    name={getSelectedType()?.icon}
+                    size={24}
+                    color={getTypeColor()}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.selectorTitle}>
+                    {getSelectedType()?.label}
+                  </Text>
+                  <Text style={styles.selectorSubtitle}>
+                    {getSelectedType()?.description}
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
 
-          {/* Amount Input */}
-          <View style={styles.amountContainer}>
-            <Text style={styles.amountLabel}>Amount</Text>
-            <View style={styles.amountInputContainer}>
-              <Text style={styles.currencySymbol}>₹</Text>
+          {/* Amount Input - With Rupee Symbol Only */}
+          <View style={styles.section}>
+            <View style={styles.amountContainer}>
+              <Ionicons
+                name="cash"
+                size={24}
+                color={getTypeColor()}
+                style={styles.amountIcon}
+              />
+              <Text style={[styles.currencySymbol, { color: getTypeColor() }]}>
+                ₹
+              </Text>
               <TextInput
-                style={styles.amountInput}
-                placeholder="0"
+                style={[styles.amountInput, { color: getTypeColor() }]}
+                placeholder="0.00"
                 placeholderTextColor="#9CA3AF"
-                value={amount}
+                value={formData.amount}
                 onChangeText={formatAmount}
                 keyboardType="numeric"
               />
             </View>
           </View>
 
-          {/* Description Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.inputLabel}>Description</Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder={`Enter ${transactionType} description`}
-              placeholderTextColor="#9CA3AF"
-              value={description}
-              onChangeText={setDescription}
-              autoCapitalize="words"
-            />
+          {/* Description Input - With Notes Icon Only */}
+          <View style={styles.section}>
+            <View style={styles.descriptionContainer}>
+              <Ionicons
+                name="document-text"
+                size={20}
+                color="#6B7280"
+                style={styles.descriptionIcon}
+              />
+              <TextInput
+                style={styles.descriptionInput}
+                placeholder={`What was this ${formData.type} for?`}
+                placeholderTextColor="#9CA3AF"
+                value={formData.description}
+                onChangeText={(value) => updateFormData("description", value)}
+                autoCapitalize="sentences"
+              />
+            </View>
           </View>
 
-          {/* Category Selection */}
-          <View style={styles.categoryContainer}>
-            <Text style={styles.categoryLabel}>Category</Text>
-            <View style={styles.categoriesGrid}>
-              {categories.map((cat) => (
+          {/* Account Selection - With Arrow for Transfer */}
+          {formData.type === "transfer" ? (
+            <View style={styles.section}>
+              <View style={styles.transferContainer}>
+                {/* From Account */}
                 <TouchableOpacity
-                  key={cat.name}
-                  style={[
-                    styles.categoryItem,
-                    category === cat.name && styles.categoryItemActive,
-                    {
-                      borderColor:
-                        category === cat.name ? cat.color : "#E5E7EB",
-                    },
-                  ]}
-                  onPress={() => setCategory(cat.name)}
+                  style={styles.transferAccount}
+                  onPress={() => setShowFromAccountModal(true)}
                 >
-                  <View
-                    style={[
-                      styles.categoryIcon,
-                      { backgroundColor: `${cat.color}20` },
-                    ]}
-                  >
-                    <Ionicons name={cat.icon} size={24} color={cat.color} />
+                  {getSelectedFromAccount() ? (
+                    <View style={styles.accountInfo}>
+                      <View
+                        style={[
+                          styles.accountIcon,
+                          { backgroundColor: getSelectedFromAccount()?.color },
+                        ]}
+                      >
+                        <Ionicons
+                          name={getSelectedFromAccount()?.icon}
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                      <View style={styles.accountDetails}>
+                        <Text style={styles.accountName}>
+                          {getSelectedFromAccount()?.label}
+                        </Text>
+                        <Text style={styles.accountBalance}>
+                          ₹{getSelectedFromAccount()?.balance?.toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.accountInfo}>
+                      <View style={styles.accountIconPlaceholder}>
+                        <Ionicons name="add" size={16} color="#9CA3AF" />
+                      </View>
+                      <Text style={styles.accountPlaceholder}>From</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Arrow */}
+                <View style={styles.arrowContainer}>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={24}
+                    color={getTypeColor()}
+                  />
+                </View>
+
+                {/* To Account */}
+                <TouchableOpacity
+                  style={styles.transferAccount}
+                  onPress={() => setShowToAccountModal(true)}
+                >
+                  {getSelectedToAccount() ? (
+                    <View style={styles.accountInfo}>
+                      <View
+                        style={[
+                          styles.accountIcon,
+                          { backgroundColor: getSelectedToAccount()?.color },
+                        ]}
+                      >
+                        <Ionicons
+                          name={getSelectedToAccount()?.icon}
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                      <View style={styles.accountDetails}>
+                        <Text style={styles.accountName}>
+                          {getSelectedToAccount()?.label}
+                        </Text>
+                        <Text style={styles.accountBalance}>
+                          ₹{getSelectedToAccount()?.balance?.toFixed(2)}
+                        </Text>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.accountInfo}>
+                      <View style={styles.accountIconPlaceholder}>
+                        <Ionicons name="add" size={16} color="#9CA3AF" />
+                      </View>
+                      <Text style={styles.accountPlaceholder}>To</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.accountCard}
+                onPress={() => setShowFromAccountModal(true)}
+              >
+                {getSelectedFromAccount() ? (
+                  <View style={styles.accountInfo}>
+                    <View
+                      style={[
+                        styles.accountIcon,
+                        { backgroundColor: getSelectedFromAccount()?.color },
+                      ]}
+                    >
+                      <Ionicons
+                        name={getSelectedFromAccount()?.icon}
+                        size={20}
+                        color="#FFFFFF"
+                      />
+                    </View>
+                    <View style={styles.accountDetails}>
+                      <Text style={styles.accountName}>
+                        {getSelectedFromAccount()?.label}
+                      </Text>
+                      <Text style={styles.accountBalance}>
+                        Balance: ₹
+                        {getSelectedFromAccount()?.balance?.toFixed(2)}
+                      </Text>
+                    </View>
                   </View>
-                  <Text
-                    style={[
-                      styles.categoryText,
-                      { color: category === cat.name ? cat.color : "#6B7280" },
-                    ]}
-                  >
-                    {cat.name}
-                  </Text>
+                ) : (
+                  <View style={styles.accountInfo}>
+                    <View style={styles.accountIconPlaceholder}>
+                      <Ionicons name="add" size={20} color="#9CA3AF" />
+                    </View>
+                    <Text style={styles.accountPlaceholder}>
+                      Select account
+                    </Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Category (Expense/Income only) */}
+          {formData.type !== "transfer" && (
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => setShowCategoryModal(true)}
+              >
+                {getSelectedCategory() ? (
+                  <View style={styles.categoryInfo}>
+                    <View
+                      style={[
+                        styles.categoryIcon,
+                        {
+                          backgroundColor: `${getSelectedCategory()?.color}20`,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={getSelectedCategory()?.icon}
+                        size={20}
+                        color={getSelectedCategory()?.color}
+                      />
+                    </View>
+                    <Text style={styles.categoryName}>
+                      {getSelectedCategory()?.label}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.categoryInfo}>
+                    <View style={styles.categoryIconPlaceholder}>
+                      <Ionicons name="apps-outline" size={20} color="#9CA3AF" />
+                    </View>
+                    <Text style={styles.categoryPlaceholder}>
+                      Select category
+                    </Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Date */}
+          <View style={styles.section}>
+            <TouchableOpacity
+              style={styles.dateCard}
+              onPress={() => setShowDateModal(true)}
+            >
+              <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+              <Text style={styles.dateText}>{formData.date}</Text>
+              <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Note */}
+          <View style={styles.section}>
+            <View style={styles.noteContainer}>
+              <Ionicons
+                name="create-outline"
+                size={20}
+                color="#6B7280"
+                style={styles.noteIcon}
+              />
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Add any additional notes..."
+                placeholderTextColor="#9CA3AF"
+                value={formData.note}
+                onChangeText={(value) => updateFormData("note", value)}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* All Modals remain the same as before */}
+        {/* Transaction Type Modal */}
+        <Modal
+          visible={showTypeModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowTypeModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              onPress={() => setShowTypeModal(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Transaction Type</Text>
+              {transactionTypes.map((type) => (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.modalOption,
+                    formData.type === type.value && styles.modalOptionActive,
+                  ]}
+                  onPress={() => {
+                    updateFormData("type", type.value)
+                    setShowTypeModal(false)
+                  }}
+                >
+                  <View style={styles.modalOptionContent}>
+                    <View
+                      style={[
+                        styles.modalOptionIcon,
+                        { backgroundColor: `${type.color}20` },
+                      ]}
+                    >
+                      <Ionicons name={type.icon} size={24} color={type.color} />
+                    </View>
+                    <View style={styles.modalOptionText}>
+                      <Text style={styles.modalOptionTitle}>{type.label}</Text>
+                      <Text style={styles.modalOptionSubtitle}>
+                        {type.description}
+                      </Text>
+                    </View>
+                  </View>
+                  {formData.type === type.value && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={24}
+                      color={type.color}
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
           </View>
+        </Modal>
 
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              {
-                backgroundColor:
-                  transactionType === "expense" ? "#FF6B6B" : "#1CC29F",
-              },
-              loading && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            <Text style={styles.submitButtonText}>
-              {loading
-                ? "Adding..."
-                : `Add ${transactionType === "expense" ? "Expense" : "Income"}`}
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
+        {/* From Account Modal */}
+        <Modal
+          visible={showFromAccountModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowFromAccountModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              onPress={() => setShowFromAccountModal(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                Select {formData.type === "transfer" ? "From" : ""} Account
+              </Text>
+
+              {accountsLoading ? (
+                <ActivityIndicator size="large" color="#1CC29F" />
+              ) : accountsError ? (
+                <Text style={styles.errorText}>Failed to load accounts</Text>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {accountOptions.map((account) => (
+                    <TouchableOpacity
+                      key={account.id}
+                      style={[
+                        styles.modalOption,
+                        formData.fromAccount === account.id &&
+                          styles.modalOptionActive,
+                      ]}
+                      onPress={() => {
+                        updateFormData("fromAccount", account.id)
+                        setShowFromAccountModal(false)
+                      }}
+                    >
+                      <View style={styles.modalOptionContent}>
+                        <View
+                          style={[
+                            styles.modalAccountIcon,
+                            { backgroundColor: account.color },
+                          ]}
+                        >
+                          <Ionicons
+                            name={account.icon}
+                            size={20}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                        <View style={styles.modalOptionText}>
+                          <Text style={styles.modalOptionTitle}>
+                            {account.label}
+                          </Text>
+                          <Text style={styles.modalOptionSubtitle}>
+                            {account.type.charAt(0).toUpperCase() +
+                              account.type.slice(1)}{" "}
+                            • Balance: ₹{account.balance.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                      {formData.fromAccount === account.id && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={24}
+                          color="#1CC29F"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* To Account Modal (Transfer only) */}
+        <Modal
+          visible={showToAccountModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowToAccountModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              onPress={() => setShowToAccountModal(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Destination Account</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {accountOptions
+                  .filter((account) => account.id !== formData.fromAccount)
+                  .map((account) => (
+                    <TouchableOpacity
+                      key={account.id}
+                      style={[
+                        styles.modalOption,
+                        formData.toAccount === account.id &&
+                          styles.modalOptionActive,
+                      ]}
+                      onPress={() => {
+                        updateFormData("toAccount", account.id)
+                        setShowToAccountModal(false)
+                      }}
+                    >
+                      <View style={styles.modalOptionContent}>
+                        <View
+                          style={[
+                            styles.modalAccountIcon,
+                            { backgroundColor: account.color },
+                          ]}
+                        >
+                          <Ionicons
+                            name={account.icon}
+                            size={20}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                        <View style={styles.modalOptionText}>
+                          <Text style={styles.modalOptionTitle}>
+                            {account.label}
+                          </Text>
+                          <Text style={styles.modalOptionSubtitle}>
+                            Balance: ₹{account.balance.toFixed(2)}
+                          </Text>
+                        </View>
+                      </View>
+                      {formData.toAccount === account.id && (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={24}
+                          color="#1CC29F"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Category Modal */}
+        <Modal
+          visible={showCategoryModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowCategoryModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              onPress={() => setShowCategoryModal(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category.id}
+                    style={[
+                      styles.modalOption,
+                      formData.category === category.id &&
+                        styles.modalOptionActive,
+                    ]}
+                    onPress={() => {
+                      updateFormData("category", category.id)
+                      setShowCategoryModal(false)
+                    }}
+                  >
+                    <View style={styles.modalOptionContent}>
+                      <View
+                        style={[
+                          styles.modalOptionIcon,
+                          { backgroundColor: `${category.color}20` },
+                        ]}
+                      >
+                        <Ionicons
+                          name={category.icon}
+                          size={20}
+                          color={category.color}
+                        />
+                      </View>
+                      <Text style={styles.modalOptionTitle}>
+                        {category.label}
+                      </Text>
+                    </View>
+                    {formData.category === category.id && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={24}
+                        color={category.color}
+                      />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Date Modal */}
+        <Modal
+          visible={showDateModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDateModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity
+              style={styles.modalBackdrop}
+              onPress={() => setShowDateModal(false)}
+              activeOpacity={1}
+            />
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Select Date</Text>
+              <TextInput
+                style={styles.dateInput}
+                value={formData.date}
+                onChangeText={(date) => updateFormData("date", date)}
+                placeholder="YYYY-MM-DD"
+                keyboardType="numbers-and-punctuation"
+              />
+              <TouchableOpacity
+                style={[
+                  styles.confirmButton,
+                  { backgroundColor: getTypeColor() },
+                ]}
+                onPress={() => setShowDateModal(false)}
+              >
+                <Text style={styles.confirmButtonText}>Set Date</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
-  header: {
-    backgroundColor: "#1CC29F",
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-  },
-  toggleContainer: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 32,
-  },
-  toggleButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  toggleButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
-  },
-  amountContainer: {
-    marginBottom: 32,
-  },
-  amountLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 12,
-  },
-  amountInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderWidth: 2,
-    borderColor: "#E5E7EB",
-  },
-  currencySymbol: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1CC29F",
-    marginRight: 8,
-  },
-  amountInput: {
-    flex: 1,
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  inputContainer: {
-    marginBottom: 32,
-  },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 12,
-  },
-  textInput: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    fontSize: 16,
-    color: "#111827",
-    borderWidth: 2,
-    borderColor: "#E5E7EB",
-  },
-  categoryContainer: {
-    marginBottom: 40,
-  },
-  categoryLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 16,
-  },
-  categoriesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
-  categoryItem: {
-    width: "23%",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 2,
-  },
-  categoryItemActive: {
-    shadowColor: "#1CC29F",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  submitButton: {
-    paddingVertical: 16,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 40,
-  },
-  submitButtonDisabled: {
-    opacity: 0.7,
-  },
-  submitButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-})

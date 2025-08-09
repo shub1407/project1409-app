@@ -1,126 +1,93 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useEffect, useState } from "react"
+import { router } from "expo-router"
+import { useState } from "react"
 import {
-  RefreshControl,
+  ActivityIndicator,
+  Alert,
+  Modal,
   SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native"
-import { useAuth } from "../../src/context/AuthContext"
 
-export default function ExpensesScreen() {
-  const [expenses, setExpenses] = useState([])
-  const [refreshing, setRefreshing] = useState(false)
-  const [filter, setFilter] = useState("all") // all, today, week, month
-  const { user } = useAuth()
+export default function AddExpenseScreen() {
+  const [formData, setFormData] = useState({
+    description: "",
+    amount: "",
+    account: "",
+    category: "",
+    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+    note: "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [showAccountModal, setShowAccountModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [showDateModal, setShowDateModal] = useState(false)
 
-  useEffect(() => {
-    loadExpenses()
-  }, [])
+  // Example options
+  const accountOptions = [
+    { id: "cash", label: "Cash", color: "#1CC29F" },
+    { id: "pnb", label: "PNB", color: "#8B4513" },
+    { id: "bob", label: "BOB", color: "#FF6B6B" },
+  ]
+  const categoryOptions = [
+    { id: "food", label: "Food", icon: "restaurant-outline", color: "#FF9F43" },
+    {
+      id: "shopping",
+      label: "Shopping",
+      icon: "bag-outline",
+      color: "#54A0FF",
+    },
+    {
+      id: "transport",
+      label: "Transport",
+      icon: "car-outline",
+      color: "#45B7D1",
+    },
+    {
+      id: "bills",
+      label: "Bills",
+      icon: "document-text-outline",
+      color: "#FF6B6B",
+    },
+    // Add more as needed
+  ]
 
-  const loadExpenses = async () => {
+  const handleSave = async () => {
+    if (
+      !formData.description.trim() ||
+      !formData.amount.trim() ||
+      !formData.account ||
+      !formData.category ||
+      isNaN(Number(formData.amount))
+    ) {
+      Alert.alert("Error", "Please fill all required fields with valid values")
+      return
+    }
+    setLoading(true)
+    // Replace with your actual expenseService call
     try {
-      // Mock data for now
-      setExpenses([
+      // await expenseService.createExpense({...formData, amount: Number(formData.amount)});
+      Alert.alert("Success", "Expense added successfully!", [
         {
-          id: 1,
-          description: "Grocery Shopping",
-          amount: 1250,
-          category: "Food",
-          date: "2025-08-07",
-          type: "expense",
-        },
-        {
-          id: 2,
-          description: "Coffee",
-          amount: 150,
-          category: "Food",
-          date: "2025-08-07",
-          type: "expense",
-        },
-        {
-          id: 3,
-          description: "Uber Ride",
-          amount: 300,
-          category: "Transport",
-          date: "2025-08-06",
-          type: "expense",
-        },
-        {
-          id: 4,
-          description: "Salary Credit",
-          amount: 45000,
-          category: "Income",
-          date: "2025-08-01",
-          type: "income",
-        },
-        {
-          id: 5,
-          description: "Netflix Subscription",
-          amount: 799,
-          category: "Entertainment",
-          date: "2025-08-05",
-          type: "expense",
+          text: "OK",
+          onPress: () => router.back(),
         },
       ])
-    } catch (error) {
-      console.error("Error loading expenses:", error)
+    } catch (e) {
+      Alert.alert("Error", "Failed to add expense.")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const onRefresh = async () => {
-    setRefreshing(true)
-    await loadExpenses()
-    setRefreshing(false)
-  }
-
-  const formatCurrency = (amount) => {
-    return `₹${Math.abs(amount).toLocaleString("en-IN")}`
-  }
-
-  const getCategoryIcon = (category) => {
-    const icons = {
-      Food: "restaurant-outline",
-      Transport: "car-outline",
-      Entertainment: "musical-notes-outline",
-      Income: "trending-up-outline",
-      Shopping: "bag-outline",
-      Bills: "document-text-outline",
-    }
-    return icons[category] || "cash-outline"
-  }
-
-  const getCategoryColor = (category) => {
-    const colors = {
-      Food: "#FF6B6B",
-      Transport: "#4ECDC4",
-      Entertainment: "#45B7D1",
-      Income: "#96CEB4",
-      Shopping: "#FECA57",
-      Bills: "#FF9FF3",
-    }
-    return colors[category] || "#1CC29F"
-  }
-
-  const filteredExpenses = expenses.filter((expense) => {
-    if (filter === "all") return true
-    const today = new Date().toISOString().split("T")[0]
-    if (filter === "today") return expense.date === today
-    // Add more filter logic as needed
-    return true
-  })
-
-  const totalExpenses = filteredExpenses
-    .filter((item) => item.type === "expense")
-    .reduce((sum, item) => sum + item.amount, 0)
-
-  const totalIncome = filteredExpenses
-    .filter((item) => item.type === "income")
-    .reduce((sum, item) => sum + item.amount, 0)
+  const handleField = (key, value) =>
+    setFormData((prev) => ({ ...prev, [key]: value }))
 
   return (
     <>
@@ -128,103 +95,241 @@ export default function ExpensesScreen() {
       <SafeAreaView style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Expenses</Text>
-          <TouchableOpacity style={styles.filterButton}>
-            <Ionicons name="filter" size={20} color="#FFFFFF" />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.headerButton}
+            disabled={loading}
+          >
+            <Ionicons name="close" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Expense</Text>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={styles.headerButton}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+            )}
           </TouchableOpacity>
         </View>
-
-        {/* Summary Cards */}
-        <View style={styles.summaryContainer}>
-          <View style={[styles.summaryCard, { backgroundColor: "#FF6B6B" }]}>
-            <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryAmount}>
-              -{formatCurrency(totalExpenses)}
-            </Text>
-          </View>
-          <View style={[styles.summaryCard, { backgroundColor: "#1CC29F" }]}>
-            <Text style={styles.summaryLabel}>Total Earned</Text>
-            <Text style={styles.summaryAmount}>
-              +{formatCurrency(totalIncome)}
-            </Text>
-          </View>
-        </View>
-
-        {/* Filter Buttons */}
-        <View style={styles.filterContainer}>
-          {["all", "today", "week", "month"].map((filterType) => (
-            <TouchableOpacity
-              key={filterType}
-              style={[
-                styles.filterTab,
-                filter === filterType && styles.filterTabActive,
-              ]}
-              onPress={() => setFilter(filterType)}
-            >
-              <Text
-                style={[
-                  styles.filterTabText,
-                  filter === filterType && styles.filterTabTextActive,
-                ]}
-              >
-                {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Expenses List */}
         <ScrollView
-          style={styles.expensesList}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#1CC29F"]}
-            />
-          }
+          style={styles.content}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {filteredExpenses.map((expense) => (
-            <View key={expense.id} style={styles.expenseItem}>
-              <View style={styles.expenseLeft}>
-                <View
-                  style={[
-                    styles.categoryIcon,
-                    {
-                      backgroundColor: `${getCategoryColor(
-                        expense.category
-                      )}20`,
-                    },
-                  ]}
+          {/* Description Field */}
+          <View style={styles.fieldContainer}>
+            <View style={styles.iconBox}>
+              <Ionicons name="receipt-outline" size={20} color="#1CC29F" />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter description"
+              placeholderTextColor="#9CA3AF"
+              value={formData.description}
+              onChangeText={(v) => handleField("description", v)}
+            />
+          </View>
+          {/* Amount Field */}
+          <View style={styles.fieldContainer}>
+            <View style={styles.iconBox}>
+              <Ionicons name="pricetag-outline" size={20} color="#1CC29F" />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Amount"
+              placeholderTextColor="#9CA3AF"
+              value={formData.amount}
+              keyboardType="numeric"
+              onChangeText={(v) =>
+                handleField("amount", v.replace(/[^\d.]/g, ""))
+              }
+            />
+          </View>
+          {/* Account Selector */}
+          <TouchableOpacity
+            style={styles.fieldContainer}
+            onPress={() => setShowAccountModal(true)}
+          >
+            <View style={styles.iconBox}>
+              <Ionicons name="wallet-outline" size={20} color="#1CC29F" />
+            </View>
+            <Text
+              style={[styles.input, !formData.account && { color: "#9CA3AF" }]}
+            >
+              {formData.account
+                ? accountOptions.find((a) => a.id === formData.account)?.label
+                : "Select Account"}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+          {/* Category Selector */}
+          <TouchableOpacity
+            style={styles.fieldContainer}
+            onPress={() => setShowCategoryModal(true)}
+          >
+            <View style={styles.iconBox}>
+              <Ionicons
+                name={
+                  formData.category
+                    ? categoryOptions.find((c) => c.id === formData.category)
+                        ?.icon
+                    : "apps-outline"
+                }
+                size={20}
+                color="#1CC29F"
+              />
+            </View>
+            <Text
+              style={[styles.input, !formData.category && { color: "#9CA3AF" }]}
+            >
+              {formData.category
+                ? categoryOptions.find((c) => c.id === formData.category)?.label
+                : "Select Category"}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+          {/* Note Field */}
+          <View style={styles.fieldContainer}>
+            <View style={styles.iconBox}>
+              <Ionicons
+                name="document-text-outline"
+                size={20}
+                color="#1CC29F"
+              />
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="Add note (optional)"
+              placeholderTextColor="#9CA3AF"
+              value={formData.note}
+              onChangeText={(v) => handleField("note", v)}
+            />
+          </View>
+          {/* Date Picker */}
+          <TouchableOpacity
+            style={styles.metaRow}
+            onPress={() => setShowDateModal(true)}
+          >
+            <Ionicons name="calendar-outline" size={18} color="#1CC29F" />
+            <Text style={styles.metaText}>Date: {formData.date}</Text>
+          </TouchableOpacity>
+        </ScrollView>
+        {/* Account Modal */}
+        <Modal
+          visible={showAccountModal}
+          transparent
+          onRequestClose={() => setShowAccountModal(false)}
+          animationType="fade"
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            onPress={() => setShowAccountModal(false)}
+            activeOpacity={1}
+          >
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Select Account</Text>
+              {accountOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    handleField("account", opt.id)
+                    setShowAccountModal(false)
+                  }}
+                >
+                  <View
+                    style={[styles.colourDot, { backgroundColor: opt.color }]}
+                  />
+                  <Text style={styles.modalOptionText}>{opt.label}</Text>
+                  {formData.account === opt.id && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#1CC29F"
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+        {/* Category Modal */}
+        <Modal
+          visible={showCategoryModal}
+          transparent
+          onRequestClose={() => setShowCategoryModal(false)}
+          animationType="fade"
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            onPress={() => setShowCategoryModal(false)}
+            activeOpacity={1}
+          >
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              {categoryOptions.map((opt) => (
+                <TouchableOpacity
+                  key={opt.id}
+                  style={styles.modalOption}
+                  onPress={() => {
+                    handleField("category", opt.id)
+                    setShowCategoryModal(false)
+                  }}
                 >
                   <Ionicons
-                    name={getCategoryIcon(expense.category)}
-                    size={24}
-                    color={getCategoryColor(expense.category)}
+                    name={opt.icon}
+                    size={18}
+                    color={opt.color}
+                    style={{ marginRight: 10 }}
                   />
-                </View>
-                <View style={styles.expenseDetails}>
-                  <Text style={styles.expenseDescription}>
-                    {expense.description}
-                  </Text>
-                  <Text style={styles.expenseCategory}>
-                    {expense.category} • {expense.date}
-                  </Text>
-                </View>
-              </View>
-              <Text
-                style={[
-                  styles.expenseAmount,
-                  { color: expense.type === "expense" ? "#FF6B6B" : "#1CC29F" },
-                ]}
-              >
-                {expense.type === "expense" ? "-" : "+"}
-                {formatCurrency(expense.amount)}
-              </Text>
+                  <Text style={styles.modalOptionText}>{opt.label}</Text>
+                  {formData.category === opt.id && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={20}
+                      color="#1CC29F"
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
-          ))}
-        </ScrollView>
+          </TouchableOpacity>
+        </Modal>
+        {/* Date Picker Modal (Native implementation recommended) */}
+        {/* You can use @react-native-community/datetimepicker for better UX */}
+        <Modal
+          visible={showDateModal}
+          transparent
+          onRequestClose={() => setShowDateModal(false)}
+          animationType="fade"
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            onPress={() => setShowDateModal(false)}
+            activeOpacity={1}
+          >
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>Select Date</Text>
+              <TextInput
+                value={formData.date}
+                onChangeText={(date) => handleField("date", date)}
+                style={styles.textInput}
+                placeholder="YYYY-MM-DD"
+                keyboardType="numbers-and-punctuation"
+              />
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => setShowDateModal(false)}
+              >
+                <Text style={styles.selectButtonText}>Set Date</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </SafeAreaView>
     </>
   )
@@ -236,124 +341,137 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9FAFB",
   },
   header: {
-    backgroundColor: "#1CC29F",
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 24,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: "#1CC29F",
+    paddingTop: 20,
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  filterButton: {
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "rgba(255,255,255,0.13)",
     justifyContent: "center",
     alignItems: "center",
   },
-  summaryContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    gap: 16,
-  },
-  summaryCard: {
-    flex: 1,
-    padding: 20,
-    borderRadius: 16,
-    alignItems: "center",
-  },
-  summaryLabel: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "500",
-    opacity: 0.9,
-  },
-  summaryAmount: {
+  headerTitle: {
     color: "#FFFFFF",
     fontSize: 20,
     fontWeight: "700",
-    marginTop: 4,
+    letterSpacing: 0.1,
   },
-  filterContainer: {
-    flexDirection: "row",
-    paddingHorizontal: 24,
-    marginTop: 24,
-    marginBottom: 16,
-  },
-  filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 12,
-    backgroundColor: "#FFFFFF",
-  },
-  filterTabActive: {
-    backgroundColor: "#1CC29F",
-  },
-  filterTabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  filterTabTextActive: {
-    color: "#FFFFFF",
-  },
-  expensesList: {
+  content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
+    paddingTop: 24,
   },
-  expenseItem: {
-    backgroundColor: "#FFFFFF",
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 12,
+  fieldContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginBottom: 18,
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  expenseLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  categoryIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+  iconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#F0FDF4",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
-  expenseDetails: {
+  input: {
     flex: 1,
+    fontSize: 15,
+    color: "#374151",
+    fontWeight: "500",
+    height: 32,
   },
-  expenseDescription: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    marginBottom: 22,
+    marginLeft: 4,
   },
-  expenseCategory: {
+  metaText: {
+    marginLeft: 8,
     fontSize: 14,
     color: "#6B7280",
+    fontWeight: "500",
   },
-  expenseAmount: {
-    fontSize: 16,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    width: "80%",
+    maxWidth: 400,
+    shadowColor: "#1CC29F",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
     fontWeight: "700",
+    textAlign: "center",
+    color: "#111827",
+    marginBottom: 22,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    marginBottom: 6,
+  },
+  colourDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  modalOptionText: {
+    flex: 1,
+    fontSize: 16,
+    color: "#222",
+    fontWeight: "500",
+  },
+  selectButton: {
+    marginTop: 18,
+    alignSelf: "flex-end",
+    backgroundColor: "#1CC29F",
+    borderRadius: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+  },
+  selectButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
 })

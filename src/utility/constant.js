@@ -1,5 +1,6 @@
 const ip = "10.24.187.84"
-const localUrl = `http://${ip}:4000/api`
+const ip2 = "192.168.1.8"
+const localUrl = `http://${ip2}:4000/api`
 const serverUrl = "https://food-del-backend-murex.vercel.app/api"
 const subdomain = "https://api.bhukkadz.in/api"
 const localSocketUrl = `http://${ip}:10000`
