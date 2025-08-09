@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
-import { useCallback, useMemo, useState } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -15,96 +16,290 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { accountService } from "../../src/services/accountService"
+import { accountService } from "../../src/services/accountService" // adjust path if needed
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
+/* -------------------------
+   Static data (stable references)
+   ------------------------- */
+const ACCOUNT_TYPES = [
+  { value: "savings", label: "Savings Account", icon: "card-outline" },
+  { value: "current", label: "Current Account", icon: "briefcase-outline" },
+  { value: "credit", label: "Credit Card", icon: "card" },
+  { value: "cash", label: "Cash", icon: "cash-outline" },
+  { value: "upi", label: "UPI Wallet", icon: "phone-portrait-outline" },
+  { value: "investment", label: "Investment", icon: "trending-up-outline" },
+]
+
+const ACCOUNT_COLORS = [
+  { value: "#1CC29F", label: "Green" },
+  { value: "#FF6B6B", label: "Red" },
+  { value: "#4ECDC4", label: "Teal" },
+  { value: "#45B7D1", label: "Blue" },
+  { value: "#FECA57", label: "Yellow" },
+  { value: "#FF9FF3", label: "Pink" },
+  { value: "#54A0FF", label: "Light Blue" },
+  { value: "#5F27CD", label: "Purple" },
+  { value: "#00D2D3", label: "Cyan" },
+  { value: "#FF9F43", label: "Orange" },
+  { value: "#A55EEA", label: "Violet" },
+  { value: "#26DE81", label: "Mint" },
+]
+
+/* -------------------------
+   Row components (memoized with shallow comparison)
+   ------------------------- */
+const ColorRow = React.memo(
+  function ColorRow({ item, selected, onPress }) {
+    return (
+      <TouchableOpacity
+        onPress={() => onPress(item.value)}
+        activeOpacity={0.7}
+        style={[styles.modalOption, selected && styles.modalOptionActive]}
+      >
+        <View style={styles.modalOptionContent}>
+          <View
+            style={[styles.colorIndicator, { backgroundColor: item.value }]}
+          />
+          <Text
+            style={[
+              styles.modalOptionText,
+              selected && styles.modalOptionTextActive,
+            ]}
+          >
+            {item.label}
+          </Text>
+        </View>
+        {selected && <Ionicons name="checkmark" size={20} color="#1CC29F" />}
+      </TouchableOpacity>
+    )
+  },
+  (prev, next) =>
+    prev.selected === next.selected && prev.item.value === next.item.value
+)
+
+const TypeRow = React.memo(
+  function TypeRow({ item, selected, onPress }) {
+    return (
+      <TouchableOpacity
+        onPress={() => onPress(item.value, item.icon)}
+        activeOpacity={0.7}
+        style={[styles.modalOption, selected && styles.modalOptionActive]}
+      >
+        <View style={styles.modalOptionContent}>
+          <Ionicons
+            name={item.icon}
+            size={24}
+            color={selected ? "#1CC29F" : "#6B7280"}
+          />
+          <Text
+            style={[
+              styles.modalOptionText,
+              selected && styles.modalOptionTextActive,
+            ]}
+          >
+            {item.label}
+          </Text>
+        </View>
+        {selected && <Ionicons name="checkmark" size={20} color="#1CC29F" />}
+      </TouchableOpacity>
+    )
+  },
+  (prev, next) =>
+    prev.selected === next.selected && prev.item.value === next.item.value
+)
+
+/* -------------------------
+   Preview card (pure, memoized)
+   ------------------------- */
+const PreviewCard = React.memo(function PreviewCard({
+  name,
+  balance,
+  color,
+  icon,
+}) {
+  return (
+    <View style={[styles.previewCard, { backgroundColor: color }]}>
+      <Ionicons name={icon} size={24} color="#FFFFFF" />
+      <View style={styles.previewInfo}>
+        <Text style={styles.previewName}>{name || "Account Name"}</Text>
+        <Text style={styles.previewBalance}>₹{balance || "0.00"}</Text>
+      </View>
+    </View>
+  )
+})
+
+/* -------------------------
+   ColorModal (optimized FlatList)
+   ------------------------- */
+function ColorModal({ visible, selectedColor, onSelect, onClose }) {
+  const keyExtractor = useCallback((it) => it.value, [])
+
+  // renderItem is stable and only depends on onSelect and selectedColor through closure
+  const renderItem = useCallback(
+    ({ item }) => (
+      <ColorRow
+        item={item}
+        selected={selectedColor === item.value}
+        onPress={onSelect}
+      />
+    ),
+    [onSelect, selectedColor]
+  )
+
+  const getItemLayout = useCallback(
+    (_data, index) => ({ length: 64, offset: 64 * index, index }),
+    []
+  )
+
+  if (!visible) return null
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          onPress={onClose}
+          activeOpacity={1}
+        />
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Select Account Color</Text>
+          <FlatList
+            data={ACCOUNT_COLORS}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            extraData={selectedColor} // tells FlatList which rows might need updating
+            initialNumToRender={6}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews
+            getItemLayout={getItemLayout}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          />
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+/* -------------------------
+   TypeModal (optimized FlatList)
+   ------------------------- */
+function TypeModal({ visible, selectedType, onSelect, onClose }) {
+  const keyExtractor = useCallback((it) => it.value, [])
+
+  const renderItem = useCallback(
+    ({ item }) => (
+      <TypeRow
+        item={item}
+        selected={selectedType === item.value}
+        onPress={onSelect}
+      />
+    ),
+    [onSelect, selectedType]
+  )
+
+  const getItemLayout = useCallback(
+    (_data, index) => ({ length: 64, offset: 64 * index, index }),
+    []
+  )
+
+  if (!visible) return null
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          onPress={onClose}
+          activeOpacity={1}
+        />
+        <View style={styles.modalContent}>
+          <Text style={styles.modalTitle}>Select Account Type</Text>
+          <FlatList
+            data={ACCOUNT_TYPES}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            extraData={selectedType}
+            initialNumToRender={6}
+            maxToRenderPerBatch={6}
+            windowSize={5}
+            removeClippedSubviews
+            getItemLayout={getItemLayout}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          />
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+/* -------------------------
+   Main screen
+   ------------------------- */
 export default function AddAccountScreen() {
-  const [formData, setFormData] = useState({
-    name: "",
-    type: "savings",
-    balance: "",
-    color: "#1CC29F",
-    icon: "wallet-outline",
-  })
+  // split state
+  const [name, setName] = useState("")
+  const [type, setType] = useState("savings")
+  const [balance, setBalance] = useState("")
+  const [color, setColor] = useState("#1CC29F")
+  const [icon, setIcon] = useState("wallet-outline")
+
+  // UI state
   const [loading, setLoading] = useState(false)
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
   const [showColorDropdown, setShowColorDropdown] = useState(false)
 
-  // Memoize static data to prevent re-renders
-  const accountTypes = useMemo(
-    () => [
-      { value: "savings", label: "Savings Account", icon: "card-outline" },
-      { value: "current", label: "Current Account", icon: "briefcase-outline" },
-      { value: "credit", label: "Credit Card", icon: "card" },
-      { value: "cash", label: "Cash", icon: "cash-outline" },
-      { value: "upi", label: "UPI Wallet", icon: "phone-portrait-outline" },
-      { value: "investment", label: "Investment", icon: "trending-up-outline" },
-    ],
-    []
+  // memoized selected lookups
+  const selectedType = useMemo(
+    () => ACCOUNT_TYPES.find((t) => t.value === type) || ACCOUNT_TYPES[0],
+    [type]
+  )
+  const selectedColor = useMemo(
+    () => ACCOUNT_COLORS.find((c) => c.value === color) || ACCOUNT_COLORS[0],
+    [color]
   )
 
-  const accountColors = useMemo(
-    () => [
-      { value: "#1CC29F", label: "Green" },
-      { value: "#FF6B6B", label: "Red" },
-      { value: "#4ECDC4", label: "Teal" },
-      { value: "#45B7D1", label: "Blue" },
-      { value: "#FECA57", label: "Yellow" },
-      { value: "#FF9FF3", label: "Pink" },
-      { value: "#54A0FF", label: "Light Blue" },
-      { value: "#5F27CD", label: "Purple" },
-      { value: "#00D2D3", label: "Cyan" },
-      { value: "#FF9F43", label: "Orange" },
-      { value: "#A55EEA", label: "Violet" },
-      { value: "#26DE81", label: "Mint" },
-    ],
-    []
-  )
-
+  /* handlers */
   const handleSave = useCallback(async () => {
-    if (!formData.name.trim()) {
+    if (!name.trim()) {
       Alert.alert("Error", "Please enter account name")
       return
     }
-
-    if (!formData.balance || isNaN(parseFloat(formData.balance))) {
+    if (!balance || isNaN(parseFloat(balance))) {
       Alert.alert("Error", "Please enter a valid balance")
       return
     }
 
     setLoading(true)
-
     try {
       const accountData = {
-        name: formData.name.trim(),
-        type: formData.type,
-        balance: parseFloat(formData.balance),
-        color: formData.color,
-        icon: formData.icon,
+        name: name.trim(),
+        type,
+        balance: parseFloat(balance),
+        color,
+        icon,
       }
-
       const result = await accountService.createAccount(accountData)
-
-      if (result.success) {
+      if (result?.success) {
         Alert.alert("Success", "Account created successfully!", [
-          {
-            text: "OK",
-            onPress: () => router.back(),
-          },
+          { text: "OK", onPress: () => router.back() },
         ])
       } else {
-        Alert.alert("Error", result.error)
+        Alert.alert("Error", result?.error || "Unknown error")
       }
-    } catch (error) {
+    } catch (err) {
+      console.error(err)
       Alert.alert("Error", "Failed to create account. Please try again.")
     } finally {
       setLoading(false)
     }
-  }, [formData])
+  }, [name, type, balance, color, icon])
 
   const handleCancel = useCallback(() => {
-    if (formData.name || formData.balance) {
+    if (name || balance) {
       Alert.alert(
         "Discard Changes?",
         "Are you sure you want to discard your changes?",
@@ -120,33 +315,36 @@ export default function AddAccountScreen() {
     } else {
       router.back()
     }
-  }, [formData.name, formData.balance])
+  }, [name, balance])
 
-  const updateFormData = useCallback((key, value) => {
-    setFormData((prev) => ({ ...prev, [key]: value }))
+  const handleBalanceChange = useCallback((text) => {
+    // lightweight cleaning
+    setBalance(text.replace(/[^\d.]/g, ""))
   }, [])
 
-  const formatAmount = useCallback(
-    (text) => {
-      const cleaned = text.replace(/[^\d.]/g, "")
-      updateFormData("balance", cleaned)
-    },
-    [updateFormData]
+  const onSelectColor = useCallback((colorValue) => {
+    setColor(colorValue)
+    setShowColorDropdown(false)
+  }, [])
+
+  const onSelectType = useCallback((typeValue, iconName) => {
+    setType(typeValue)
+    setIcon(iconName || "wallet-outline")
+    setShowTypeDropdown(false)
+  }, [])
+
+  // memoized preview card (pure component prevents unnecessary recalculations)
+  const previewCard = useMemo(
+    () => (
+      <PreviewCard name={name} balance={balance} color={color} icon={icon} />
+    ),
+    [name, balance, color, icon]
   )
-
-  const getSelectedType = useCallback(() => {
-    return accountTypes.find((type) => type.value === formData.type)
-  }, [accountTypes, formData.type])
-
-  const getSelectedColor = useCallback(() => {
-    return accountColors.find((color) => color.value === formData.color)
-  }, [accountColors, formData.color])
 
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
       <SafeAreaView style={styles.container}>
-        {/* Header with X and Tick */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={handleCancel}
@@ -176,27 +374,24 @@ export default function AddAccountScreen() {
           style={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          removeClippedSubviews={true} // Performance optimization
+          removeClippedSubviews
         >
           <View style={styles.form}>
-            {/* Account Details Section */}
             <View style={styles.inputSection}>
               <Text style={styles.sectionTitle}>Account Details</Text>
 
-              {/* Account Name */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Account Name</Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="Enter account name (e.g., SBI Savings)"
                   placeholderTextColor="#9CA3AF"
-                  value={formData.name}
-                  onChangeText={(value) => updateFormData("name", value)}
+                  value={name}
+                  onChangeText={setName}
                   autoCapitalize="words"
                 />
               </View>
 
-              {/* Account Type Dropdown */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Account Type</Text>
                 <TouchableOpacity
@@ -205,20 +400,19 @@ export default function AddAccountScreen() {
                 >
                   <View style={styles.dropdownContent}>
                     <Ionicons
-                      name={getSelectedType()?.icon}
+                      name={selectedType.icon}
                       size={20}
                       color="#1CC29F"
                       style={styles.dropdownIcon}
                     />
                     <Text style={styles.dropdownText}>
-                      {getSelectedType()?.label}
+                      {selectedType.label}
                     </Text>
                   </View>
                   <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
 
-              {/* Account Color Dropdown */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Account Color</Text>
                 <TouchableOpacity
@@ -229,18 +423,17 @@ export default function AddAccountScreen() {
                     <View
                       style={[
                         styles.colorIndicator,
-                        { backgroundColor: formData.color },
+                        { backgroundColor: color },
                       ]}
                     />
                     <Text style={styles.dropdownText}>
-                      {getSelectedColor()?.label}
+                      {selectedColor.label}
                     </Text>
                   </View>
                   <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
 
-              {/* Initial Balance */}
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Initial Balance</Text>
                 <View style={styles.amountInputContainer}>
@@ -249,156 +442,42 @@ export default function AddAccountScreen() {
                     style={styles.amountInput}
                     placeholder="0.00"
                     placeholderTextColor="#9CA3AF"
-                    value={formData.balance}
-                    onChangeText={formatAmount}
+                    value={balance}
+                    onChangeText={handleBalanceChange}
                     keyboardType="numeric"
                   />
                 </View>
               </View>
             </View>
 
-            {/* Preview Card */}
             <View style={styles.inputSection}>
               <Text style={styles.sectionTitle}>Preview</Text>
-              <View
-                style={[
-                  styles.previewCard,
-                  { backgroundColor: formData.color },
-                ]}
-              >
-                <Ionicons name={formData.icon} size={24} color="#FFFFFF" />
-                <View style={styles.previewInfo}>
-                  <Text style={styles.previewName}>
-                    {formData.name || "Account Name"}
-                  </Text>
-                  <Text style={styles.previewBalance}>
-                    ₹{formData.balance || "0.00"}
-                  </Text>
-                </View>
-              </View>
+              {previewCard}
             </View>
           </View>
         </ScrollView>
 
-        {/* Account Type Modal - Fixed positioning */}
-        <Modal
+        {/* modular modals (only mounted when visible) */}
+        <TypeModal
           visible={showTypeDropdown}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowTypeDropdown(false)}
-          statusBarTranslucent={false}
-        >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity
-              style={styles.modalBackdrop}
-              onPress={() => setShowTypeDropdown(false)}
-              activeOpacity={1}
-            />
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Account Type</Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {accountTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type.value}
-                    style={[
-                      styles.modalOption,
-                      formData.type === type.value && styles.modalOptionActive,
-                    ]}
-                    onPress={() => {
-                      updateFormData("type", type.value)
-                      updateFormData("icon", type.icon)
-                      setShowTypeDropdown(false)
-                    }}
-                  >
-                    <View style={styles.modalOptionContent}>
-                      <Ionicons
-                        name={type.icon}
-                        size={24}
-                        color={
-                          formData.type === type.value ? "#1CC29F" : "#6B7280"
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.modalOptionText,
-                          formData.type === type.value &&
-                            styles.modalOptionTextActive,
-                        ]}
-                      >
-                        {type.label}
-                      </Text>
-                    </View>
-                    {formData.type === type.value && (
-                      <Ionicons name="checkmark" size={20} color="#1CC29F" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Account Color Modal - Fixed positioning */}
-        <Modal
+          selectedType={type}
+          onSelect={onSelectType}
+          onClose={() => setShowTypeDropdown(false)}
+        />
+        <ColorModal
           visible={showColorDropdown}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowColorDropdown(false)}
-          statusBarTranslucent={false}
-        >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity
-              style={styles.modalBackdrop}
-              onPress={() => setShowColorDropdown(false)}
-              activeOpacity={1}
-            />
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Account Color</Text>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {accountColors.map((color) => (
-                  <TouchableOpacity
-                    key={color.value}
-                    style={[
-                      styles.modalOption,
-                      formData.color === color.value &&
-                        styles.modalOptionActive,
-                    ]}
-                    onPress={() => {
-                      updateFormData("color", color.value)
-                      setShowColorDropdown(false)
-                    }}
-                  >
-                    <View style={styles.modalOptionContent}>
-                      <View
-                        style={[
-                          styles.colorIndicator,
-                          { backgroundColor: color.value },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.modalOptionText,
-                          formData.color === color.value &&
-                            styles.modalOptionTextActive,
-                        ]}
-                      >
-                        {color.label}
-                      </Text>
-                    </View>
-                    {formData.color === color.value && (
-                      <Ionicons name="checkmark" size={20} color="#1CC29F" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
-        </Modal>
+          selectedColor={color}
+          onSelect={onSelectColor}
+          onClose={() => setShowColorDropdown(false)}
+        />
       </SafeAreaView>
     </>
   )
 }
 
+/* -------------------------
+   Styles
+   ------------------------- */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -523,10 +602,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 6,
@@ -545,7 +621,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
   },
-  // Fixed modal styles
+
+  /* modal */
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -563,13 +640,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
-    width: screenWidth - 48, // Fixed width
-    maxHeight: screenHeight * 0.6, // Fixed max height
+    width: screenWidth - 48,
+    maxHeight: screenHeight * 0.6,
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 16,
@@ -589,6 +663,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
     marginBottom: 8,
+    height: 64,
   },
   modalOptionActive: {
     backgroundColor: "#F0FDF4",

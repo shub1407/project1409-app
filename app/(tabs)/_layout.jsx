@@ -52,12 +52,13 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
-            name="expenses"
+            name="records"
             options={{
-              title: "Expenses",
+              title: "Records",
+              tabBarStyle: { display: "none" }, // Hide tab bar on this screen
               tabBarIcon: ({ color, size, focused }) => (
                 <Ionicons
-                  name={focused ? "trending-down" : "trending-down-outline"}
+                  name={focused ? "list" : "list-outline"}
                   size={size}
                   color={color}
                 />
