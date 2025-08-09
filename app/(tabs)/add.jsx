@@ -15,8 +15,8 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../src/context/AccountContext"
 import { useCategoryContext } from "../../src/context/CategoryContext"
+import transactionService from "../../src/services/transactionService"
 import styles from "../../src/styles/add"
-
 export default function AddTransactionScreen() {
   const [formData, setFormData] = useState({
     type: "expense",
@@ -49,7 +49,7 @@ export default function AddTransactionScreen() {
   const [showDateModal, setShowDateModal] = useState(false)
   const resetForm = useCallback(() => {
     setFormData({
-      type: "expense",
+      type: "income",
       description: "",
       amount: "",
       fromAccount: "",
@@ -151,18 +151,22 @@ export default function AddTransactionScreen() {
     setLoading(true)
     try {
       const transactionData = {
+        accountId: formData.fromAccount,
+        toAccountId: formData.toAccount || null,
         type: formData.type,
-        description: formData.description.trim(),
+        categoryId: formData.category || null,
         amount: parseFloat(formData.amount),
-        fromAccount: formData.fromAccount,
-        toAccount: formData.toAccount || null,
-        category: formData.category || null,
+        description: formData.description.trim(),
         date: formData.date,
         note: formData.note.trim(),
       }
 
       console.log("Transaction Data:", transactionData)
-
+      // Call API to save transaction
+      await transactionService.createTransaction(transactionData)
+      // Refresh accounts and reset form
+      await refreshAccounts()
+      resetForm()
       Alert.alert(
         "Success",
         `${
@@ -175,9 +179,6 @@ export default function AddTransactionScreen() {
           },
         ]
       )
-      // Call API to save transaction
-
-      resetForm()
     } catch (error) {
       Alert.alert("Error", "Failed to add transaction. Please try again.")
     } finally {
