@@ -58,10 +58,6 @@ export const ReportsProvider = ({ children }) => {
 
       if (result.success) {
         setMonthlyComparison(result.data.monthlyComparison)
-        console.log(
-          "Monthly Comparison Data:",
-          result.data.data.monthlyComparison
-        )
       } else {
         setError(result.error)
       }

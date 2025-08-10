@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native"
 import BarChart from "../../src/components/charts/BarChart"
+import DualBarChart from "../../src/components/charts/DualBarChart"
 import PieChart from "../../src/components/charts/PieChart"
 import ReportFilters from "../../src/components/filters/ReportFilters"
 import { useReportsContext } from "../../src/context/ReportContext"
@@ -263,9 +264,9 @@ export default function ReportsScreen() {
           {monthlyData.length > 0 && (
             <View style={styles.chartCard}>
               <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Monthly Comparison</Text>
+                <Text style={styles.cardTitle}>Income vs Expense Trends</Text>
                 <View style={styles.periodSelector}>
-                  {["3m", "6m", "12m"].map((period) => (
+                  {["6m", "12m", "24m"].map((period) => (
                     <TouchableOpacity
                       key={period}
                       style={[
@@ -287,16 +288,13 @@ export default function ReportsScreen() {
                 </View>
               </View>
 
-              <BarChart
-                data={monthlyData.map((item) => ({
-                  label: item.label,
-                  value: item.expense,
-                  color: "#FF6B6B",
-                }))}
-                height={220}
+              <DualBarChart
+                data={monthlyData}
+                height={280}
                 showValues={true}
-                showLabels={true}
                 showGrid={true}
+                incomeColor="#1CC29F"
+                expenseColor="#FF6B6B"
               />
             </View>
           )}

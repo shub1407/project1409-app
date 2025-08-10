@@ -30,7 +30,7 @@ export const reportService = {
       //   "Monthly Comparison Response:",
       //   response.data.monthlyComparison
       // )
-      return { success: true, data: response }
+      return { success: true, data: response.data }
     } catch (error) {
       console.error("Get monthly comparison error:", error)
       return { success: false, error: error.message }
