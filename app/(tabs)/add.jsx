@@ -161,7 +161,6 @@ export default function AddTransactionScreen() {
         note: formData.note.trim(),
       }
 
-      console.log("Transaction Data:", transactionData)
       // Call API to save transaction
       await transactionService.createTransaction(transactionData)
       // Refresh accounts and reset form
@@ -352,7 +351,25 @@ export default function AddTransactionScreen() {
                 {/* From Account */}
                 <TouchableOpacity
                   style={styles.transferAccount}
-                  onPress={() => setShowFromAccountModal(true)}
+                  onPress={() => {
+                    if (!accountsLoading && !accountsError) {
+                      if (accounts.length === 0) {
+                        Alert.alert(
+                          "No Accounts",
+                          "Please add an account first.",
+                          [
+                            {
+                              text: "Add Account",
+                              onPress: () => router.push("/(tabs)/add-account"),
+                            },
+                            { text: "Cancel", style: "cancel" },
+                          ]
+                        )
+                        return
+                      }
+                    }
+                    setShowFromAccountModal(true)
+                  }}
                 >
                   {getSelectedFromAccount() ? (
                     <View style={styles.accountInfo}>
@@ -399,7 +416,25 @@ export default function AddTransactionScreen() {
                 {/* To Account */}
                 <TouchableOpacity
                   style={styles.transferAccount}
-                  onPress={() => setShowToAccountModal(true)}
+                  onPress={() => {
+                    if (!accountsLoading && !accountsError) {
+                      if (accounts.length === 0) {
+                        Alert.alert(
+                          "No Accounts",
+                          "Please add an account first.",
+                          [
+                            {
+                              text: "Add Account",
+                              onPress: () => router.push("/(tabs)/add-account"),
+                            },
+                            { text: "Cancel", style: "cancel" },
+                          ]
+                        )
+                        return
+                      }
+                    }
+                    setShowToAccountModal(true)
+                  }}
                 >
                   {getSelectedToAccount() ? (
                     <View style={styles.accountInfo}>
@@ -439,7 +474,25 @@ export default function AddTransactionScreen() {
             <View style={styles.section}>
               <TouchableOpacity
                 style={styles.accountCard}
-                onPress={() => setShowFromAccountModal(true)}
+                onPress={() => {
+                  if (!accountsLoading && !accountsError) {
+                    if (accounts.length === 0) {
+                      Alert.alert(
+                        "No Accounts",
+                        "Please add an account first.",
+                        [
+                          {
+                            text: "Add Account",
+                            onPress: () => router.push("/(tabs)/add-account"),
+                          },
+                          { text: "Cancel", style: "cancel" },
+                        ]
+                      )
+                      return
+                    }
+                  }
+                  setShowFromAccountModal(true)
+                }}
               >
                 {getSelectedFromAccount() ? (
                   <View style={styles.accountInfo}>
@@ -717,7 +770,7 @@ export default function AddTransactionScreen() {
                       ]}
                       onPress={() => {
                         updateFormData("toAccount", account.id)
-                        console.log("Selected To Account:", account)
+
                         setShowToAccountModal(false)
                       }}
                     >

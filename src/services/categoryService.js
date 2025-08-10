@@ -1,45 +1,6 @@
 // services/categoryService.js
-import axios from "axios"
-import * as SecureStore from "expo-secure-store"
 
-import { baseUrl } from "../utility/constant"
-
-// Create axios instance with interceptors
-const categoryAPI = axios.create({
-  baseURL: `${baseUrl}`,
-  timeout: 10000,
-})
-
-// Request interceptor to add auth token
-categoryAPI.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = await SecureStore.getItemAsync("userToken")
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-      }
-    } catch (error) {
-      console.error("Error getting auth token:", error)
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// Response interceptor for error handling
-categoryAPI.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Handle token expiration
-      SecureStore.deleteItemAsync("userToken")
-      // Navigate to login screen if needed
-    }
-    return Promise.reject(error)
-  }
-)
+import { apiRequest as categoryAPI } from "./apiUtils"
 
 // Category API service functions
 export const categoryService = {

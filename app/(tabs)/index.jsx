@@ -1,80 +1,71 @@
-import { router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
-import { Dimensions, SafeAreaView, StatusBar, StyleSheet } from "react-native"
+import { router } from "expo-router"
+import { useEffect, useState } from "react"
+import {
+  Dimensions, // Import from react-native
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+} from "react-native"
+// Remove this line: import { ScrollView } from "react-native-web"
 import ListOfAccounts from "../../src/components/ListOfAccounts"
+import TransactionCard from "../../src/components/TransactionCard"
+import { useAccountsContext } from "../../src/context/AccountContext"
 import { useAuth } from "../../src/context/AuthContext"
-import { accountService } from "../../src/services/accountService"
+import transactionService from "../../src/services/transactionService"
+
 const { width: screenWidth } = Dimensions.get("window")
+
 export default function AccountsScreen() {
-  const [accounts, setAccounts] = useState([])
   const [refreshing, setRefreshing] = useState(false)
   const [totalBalance, setTotalBalance] = useState(0)
+  const [transactions, setTransactions] = useState([])
+  const [transactionsLoading, setTransactionsLoading] = useState(false)
   const { user } = useAuth()
+  const { accounts, refreshAccounts, loading } = useAccountsContext()
 
-  useFocusEffect(
-    useCallback(() => {
-      loadAccounts()
-    }, [])
-  )
+  useEffect(() => {
+    loadTransactions()
+  }, [])
 
-  const loadAccounts = async () => {
+  const loadTransactions = async () => {
     try {
-      const result = await accountService.getAccounts()
-
-      if (result.success) {
-        setAccounts(result.data.accounts || [])
-
-        // Calculate total balance
-        const total =
-          result.data.accounts?.reduce(
-            (sum, account) => sum + account.balance,
-            0
-          ) || 0
-        setTotalBalance(total)
-      } else {
-        console.error("Failed to load accounts:", result.error)
-        // You can show a toast or alert here
+      setTransactionsLoading(true)
+      const result = await transactionService.getTransactions()
+      if (result) {
+        setTransactions(result.transactions)
       }
     } catch (error) {
-      console.error("Error loading accounts:", error)
+      console.error("Error loading transactions:", error)
+    } finally {
+      setTransactionsLoading(false)
     }
   }
 
   const onRefresh = async () => {
     setRefreshing(true)
-    await loadAccounts()
+    await Promise.all([refreshAccounts(), loadTransactions()])
     setRefreshing(false)
   }
 
-  const formatCurrency = (amount) => {
-    return `₹${amount.toFixed(2)}`
-  }
-
-  const getAccountIcon = (type) => {
-    const icons = {
-      cash: "cash-outline",
-      bank: "card-outline",
-      upi: "phone-portrait-outline",
-      wallet: "wallet-outline",
-    }
-    return icons[type] || "wallet-outline"
+  const handleViewAllTransactions = () => {
+    router.push("/(tabs)/records")
   }
 
   const handleAccountPress = (account) => {
-    // Navigate to account details or transactions
     console.log("Account pressed:", account.name)
   }
 
   const handleAddAccount = () => {
-    router.push("/add-account") // Navigate to add account screen
+    router.push("/add-account")
   }
 
   const handleViewRecords = () => {
-    // Navigate to records/transactions screen
     console.log("View records pressed")
   }
+
   const handleSettingsPress = () => {
-    // Navigate to settings screen
     console.log("Settings pressed")
   }
 
@@ -82,16 +73,34 @@ export default function AccountsScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
       <SafeAreaView style={styles.container}>
-        {/* ... header and other components ... */}
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#1CC29F"]}
+              tintColor="#1CC29F"
+            />
+          }
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Add your header component here if you have one */}
 
-        <ListOfAccounts
-          accounts={accounts}
-          onAccountPress={handleAccountPress}
-          onAddAccount={handleAddAccount}
-          onSettingsPress={handleSettingsPress}
-        />
+          <ListOfAccounts
+            accounts={accounts}
+            onAccountPress={handleAccountPress}
+            onAddAccount={handleAddAccount}
+            onSettingsPress={handleSettingsPress}
+          />
 
-        {/* ... rest of your components ... */}
+          <TransactionCard
+            transactions={transactions}
+            loading={transactionsLoading}
+            onViewAll={handleViewAllTransactions}
+          />
+        </ScrollView>
       </SafeAreaView>
     </>
   )
@@ -102,6 +111,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F9FAFB",
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 20, // Add some bottom padding
+  },
+  // ... rest of your existing styles
   header: {
     backgroundColor: "#1CC29F",
     paddingHorizontal: 24,

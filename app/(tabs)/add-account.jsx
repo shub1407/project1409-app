@@ -16,8 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
+import { useAccountsContext } from "../../src/context/AccountContext" // adjust path if needed
 import { accountService } from "../../src/services/accountService" // adjust path if needed
-
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 /* -------------------------
@@ -261,6 +261,12 @@ export default function AddAccountScreen() {
     () => ACCOUNT_COLORS.find((c) => c.value === color) || ACCOUNT_COLORS[0],
     [color]
   )
+  const {
+    refreshAccounts,
+    accounts,
+    loading: accountsLoading,
+    error: accountsError,
+  } = useAccountsContext()
 
   /* handlers */
   const handleSave = useCallback(async () => {
@@ -294,6 +300,7 @@ export default function AddAccountScreen() {
       console.error(err)
       Alert.alert("Error", "Failed to create account. Please try again.")
     } finally {
+      refreshAccounts() // refresh accounts context
       setLoading(false)
     }
   }, [name, type, balance, color, icon])

@@ -37,7 +37,7 @@ const ListOfAccounts = ({
         <View style={styles.accountsGrid}>
           {accounts.map((account) => (
             <TouchableOpacity
-              key={account._id}
+              key={account.id}
               style={[styles.accountCard, { backgroundColor: account.color }]}
               onPress={() => onAccountPress(account)}
             >

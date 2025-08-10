@@ -33,12 +33,6 @@ const TransactionItem = ({
   const getTransferDisplay = () => {
     const fromAccount = transaction.accountId.name
     const toAccount = transaction.toAccountId.name
-    console.log(
-      "From Account:",
-      fromAccount,
-      " To Account:",
-      transaction.toAccountId
-    )
     return `${fromAccount} → ${toAccount}`
   }
 

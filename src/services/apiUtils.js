@@ -1,3 +1,6 @@
+import axios from "axios"
+import * as SecureStore from "expo-secure-store"
+import { baseUrl } from "../utility/constant"
 export const handleApiError = (error) => {
   console.error("API Error:", error)
 
@@ -55,3 +58,49 @@ export const handleApiError = (error) => {
     }
   }
 }
+export const getAuthHeaders = async () => {
+  try {
+    const token = await SecureStore.getItemAsync("userToken")
+    return token ? { Authorization: `Bearer ${token}` } : {}
+  } catch (error) {
+    console.error("Error getting token:", error)
+    return {}
+  }
+}
+// Create axios instance with interceptors
+export const apiRequest = axios.create({
+  baseURL: `${baseUrl}`,
+  timeout: 10000,
+})
+
+// Request interceptor to add auth token
+apiRequest.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await SecureStore.getItemAsync("userToken")
+      console.log("userToken:", token)
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    } catch (error) {
+      console.error("Error getting auth token:", error)
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+// Response interceptor for error handling
+apiRequest.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Handle token expiration
+      SecureStore.deleteItemAsync("userToken")
+      // Navigate to login screen if needed
+    }
+    return Promise.reject(error)
+  }
+)

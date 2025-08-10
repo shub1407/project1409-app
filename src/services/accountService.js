@@ -1,18 +1,7 @@
 import axios from "axios"
-import * as SecureStore from "expo-secure-store"
 import { baseUrl } from "../utility/constant"
-import { handleApiError } from "./apiUtils"
-
+import { getAuthHeaders, handleApiError } from "./apiUtils"
 // Helper function to get auth headers
-const getAuthHeaders = async () => {
-  try {
-    const token = await SecureStore.getItemAsync("userToken")
-    return token ? { Authorization: `Bearer ${token}` } : {}
-  } catch (error) {
-    console.error("Error getting token:", error)
-    return {}
-  }
-}
 
 export const accountService = {
   // Create new account
