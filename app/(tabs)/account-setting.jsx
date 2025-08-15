@@ -78,7 +78,7 @@ export default function AccountSettingsScreen() {
   const handleEditAccount = (account) => {
     swipeableRefs.forEach((ref) => ref?.close())
     router.push({
-      pathname: "/edit-account",
+      pathname: "/(tabs)/edit-account",
       params: { accountId: account.id },
     })
   }
@@ -514,8 +514,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: 80,
-    height: "85%",
+    height: "90%",
     borderRadius: 12,
+    marginLeft: 10,
   },
   actionText: {
     color: "#FFFFFF",

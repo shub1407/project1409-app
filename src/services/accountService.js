@@ -98,4 +98,21 @@ export const accountService = {
       return handleApiError(error)
     }
   },
+  // Update existing account
+  updateAccount: async (accountId, accountData) => {
+    try {
+      const headers = await getAuthHeaders()
+      const response = await axios.put(
+        `${baseUrl}/accounts/${accountId}`,
+        accountData,
+        { headers }
+      )
+      return {
+        success: true,
+        data: response.data,
+      }
+    } catch (error) {
+      return handleApiError(error)
+    }
+  },
 }

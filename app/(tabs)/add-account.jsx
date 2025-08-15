@@ -268,6 +268,12 @@ export default function AddAccountScreen() {
     error: accountsError,
   } = useAccountsContext()
 
+  const resetForm = () => {
+    setName("")
+    setType("")
+    setBalance("")
+  }
+
   /* handlers */
   const handleSave = useCallback(async () => {
     if (!name.trim()) {
@@ -291,8 +297,16 @@ export default function AddAccountScreen() {
       const result = await accountService.createAccount(accountData)
       if (result?.success) {
         Alert.alert("Success", "Account created successfully!", [
-          { text: "OK", onPress: () => router.back() },
+          {
+            text: "OK",
+            onPress: () => {
+              setName("")
+              setBalance(0)
+              router.back()
+            },
+          },
         ])
+        //reset form
       } else {
         Alert.alert("Error", result?.error || "Unknown error")
       }
@@ -489,7 +503,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F9FAFB",
-    marginTop: 20,
+    marginTop: 0,
   },
   header: {
     backgroundColor: "#1CC29F",

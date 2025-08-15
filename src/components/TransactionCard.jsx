@@ -114,7 +114,7 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
           </Text>
           <TouchableOpacity
             style={styles.addFirstButton}
-            onPress={() => router.push("/transactions/add")}
+            onPress={() => router.push("/(tabs)/add")}
           >
             <Ionicons name="add" size={20} color="#FFFFFF" />
             <Text style={styles.addFirstButtonText}>Add Transaction</Text>

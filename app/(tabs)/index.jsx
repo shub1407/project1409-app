@@ -54,7 +54,10 @@ export default function AccountsScreen() {
   }
 
   const handleAccountPress = (account) => {
-    console.log("Account pressed:", account.name)
+    router.push({
+      pathname: "/(tabs)/edit-account",
+      params: { accountId: account.id },
+    })
   }
 
   const handleAddAccount = () => {
