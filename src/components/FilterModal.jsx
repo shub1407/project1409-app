@@ -28,18 +28,18 @@ const FilterModal = ({
 
   const transactionTypes = [
     { value: "", label: "All Types", icon: "list-outline", color: "#6B7280" },
-    { value: "income", label: "Income", icon: "trending-up", color: "#1CC29F" },
+    { value: "income", label: "Income", icon: "arrow-down", color: "#10B981" },
     {
       value: "expense",
       label: "Expense",
-      icon: "trending-down",
-      color: "#FF6B6B",
+      icon: "arrow-up",
+      color: "#EF4444",
     },
     {
       value: "transfer",
       label: "Transfer",
       icon: "swap-horizontal",
-      color: "#45B7D1",
+      color: "#1CC29F",
     },
   ]
 
@@ -60,12 +60,16 @@ const FilterModal = ({
   }
 
   const handleReset = () => {
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
     const resetFilters = {
       type: "",
       accountId: "",
-      startDate: "",
-      endDate: "",
-      dateRange: "all",
+      startDate: monthStart.toISOString().split("T")[0],
+      endDate: monthEnd.toISOString().split("T")[0],
+      dateRange: "month",
     }
     setLocalFilters(resetFilters)
   }
@@ -119,6 +123,14 @@ const FilterModal = ({
     })
   }
 
+  const getActiveFiltersCount = () => {
+    let count = 0
+    if (localFilters.type) count++
+    if (localFilters.accountId) count++
+    if (localFilters.dateRange !== "month") count++
+    return count
+  }
+
   return (
     <Modal
       visible={visible}
@@ -134,12 +146,24 @@ const FilterModal = ({
           activeOpacity={1}
         />
         <View style={styles.modalContent}>
+          {/* Handle */}
+          <View style={styles.modalHandle} />
+
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#6B7280" />
+              <Ionicons name="close" size={20} color="#6B7280" />
             </TouchableOpacity>
-            <Text style={styles.title}>Filter Transactions</Text>
+            <View style={styles.titleContainer}>
+              <Text style={styles.title}>Filter Transactions</Text>
+              {getActiveFiltersCount() > 0 && (
+                <View style={styles.filterBadge}>
+                  <Text style={styles.filterBadgeText}>
+                    {getActiveFiltersCount()}
+                  </Text>
+                </View>
+              )}
+            </View>
             <TouchableOpacity onPress={handleReset} style={styles.resetButton}>
               <Text style={styles.resetText}>Reset</Text>
             </TouchableOpacity>
@@ -152,7 +176,12 @@ const FilterModal = ({
           >
             {/* Transaction Type */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Transaction Type</Text>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconContainer}>
+                  <Ionicons name="swap-vertical" size={18} color="#1CC29F" />
+                </View>
+                <Text style={styles.sectionTitle}>Transaction Type</Text>
+              </View>
               <View style={styles.optionsGrid}>
                 {transactionTypes.map((type) => (
                   <TouchableOpacity
@@ -161,33 +190,25 @@ const FilterModal = ({
                       styles.typeOption,
                       localFilters.type === type.value &&
                         styles.typeOptionActive,
-                      {
-                        borderColor:
-                          localFilters.type === type.value
-                            ? type.color
-                            : "#E5E7EB",
-                      },
                     ]}
                     onPress={() => handleFilterChange("type", type.value)}
                   >
-                    <Ionicons
-                      name={type.icon}
-                      size={20}
-                      color={
-                        localFilters.type === type.value
-                          ? type.color
-                          : "#9CA3AF"
-                      }
-                    />
+                    <View style={styles.typeOptionIconContainer}>
+                      <Ionicons
+                        name={type.icon}
+                        size={20}
+                        color={
+                          localFilters.type === type.value
+                            ? "#FFFFFF"
+                            : type.color
+                        }
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.typeOptionText,
-                        {
-                          color:
-                            localFilters.type === type.value
-                              ? type.color
-                              : "#6B7280",
-                        },
+                        localFilters.type === type.value &&
+                          styles.typeOptionTextActive,
                       ]}
                     >
                       {type.label}
@@ -199,8 +220,18 @@ const FilterModal = ({
 
             {/* Account Filter */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Account</Text>
-              <View style={styles.accountsGrid}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconContainer}>
+                  <Ionicons name="wallet-outline" size={18} color="#1CC29F" />
+                </View>
+                <Text style={styles.sectionTitle}>Account</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.accountsScrollView}
+                contentContainerStyle={styles.accountsContainer}
+              >
                 <TouchableOpacity
                   style={[
                     styles.accountOption,
@@ -232,7 +263,7 @@ const FilterModal = ({
                     <View
                       style={[
                         styles.accountDot,
-                        { backgroundColor: account.color },
+                        { backgroundColor: account.color || "#6B7280" },
                       ]}
                     />
                     <Text
@@ -246,12 +277,17 @@ const FilterModal = ({
                     </Text>
                   </TouchableOpacity>
                 ))}
-              </View>
+              </ScrollView>
             </View>
 
             {/* Date Range */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Date Range</Text>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIconContainer}>
+                  <Ionicons name="calendar-outline" size={18} color="#1CC29F" />
+                </View>
+                <Text style={styles.sectionTitle}>Date Range</Text>
+              </View>
               <View style={styles.dateRangeContainer}>
                 {dateRanges.map((range) => (
                   <TouchableOpacity
@@ -280,17 +316,24 @@ const FilterModal = ({
             {/* Custom Date Range */}
             {localFilters.dateRange === "custom" && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Custom Date Range</Text>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionIconContainer}>
+                    <Ionicons name="calendar" size={18} color="#1CC29F" />
+                  </View>
+                  <Text style={styles.sectionTitle}>Custom Date Range</Text>
+                </View>
                 <View style={styles.customDateContainer}>
                   <TouchableOpacity
                     style={styles.dateInput}
                     onPress={() => openDatePicker("start")}
                   >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#6B7280"
-                    />
+                    <View style={styles.dateInputIconContainer}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color="#1CC29F"
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.dateInputText,
@@ -304,17 +347,21 @@ const FilterModal = ({
                     </Text>
                   </TouchableOpacity>
 
-                  <Text style={styles.dateSeparator}>to</Text>
+                  <View style={styles.dateSeparatorContainer}>
+                    <Text style={styles.dateSeparator}>to</Text>
+                  </View>
 
                   <TouchableOpacity
                     style={styles.dateInput}
                     onPress={() => openDatePicker("end")}
                   >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#6B7280"
-                    />
+                    <View style={styles.dateInputIconContainer}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color="#1CC29F"
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.dateInputText,
@@ -332,7 +379,10 @@ const FilterModal = ({
           {/* Footer */}
           <View style={styles.footer}>
             <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
-              <Text style={styles.applyButtonText}>Apply Filters</Text>
+              <Text style={styles.applyButtonText}>
+                Apply Filters{" "}
+                {getActiveFiltersCount() > 0 && `(${getActiveFiltersCount()})`}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -412,96 +462,158 @@ const styles = StyleSheet.create({
     maxHeight: screenHeight * 0.85,
     minHeight: screenHeight * 0.6,
   },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: "#D1D5DB",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 16,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
   closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#F3F4F6",
     justifyContent: "center",
     alignItems: "center",
+  },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   title: {
     fontSize: 18,
     fontWeight: "700",
     color: "#111827",
   },
+  filterBadge: {
+    backgroundColor: "#1CC29F",
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
   resetButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
   },
   resetText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#1CC29F",
+    color: "#EF4444",
   },
   content: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
     paddingBottom: 20,
   },
   section: {
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#F9FAFB",
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#374151",
-    marginBottom: 16,
+    color: "#111827",
   },
   optionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: 8,
   },
   typeOption: {
-    width: "48%",
+    flex: 1,
+    minWidth: "48%",
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    borderWidth: 2,
-    backgroundColor: "#FAFAFA",
-    marginBottom: 12,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   typeOptionActive: {
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "#1CC29F",
+    borderColor: "#1CC29F",
+  },
+  typeOptionIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
   typeOptionText: {
     fontSize: 14,
     fontWeight: "600",
-    marginLeft: 8,
+    color: "#6B7280",
+    flex: 1,
   },
-  accountsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
+  typeOptionTextActive: {
+    color: "#FFFFFF",
+  },
+  accountsScrollView: {
+    flexGrow: 0,
+  },
+  accountsContainer: {
+    paddingRight: 20,
   },
   accountOption: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
-    marginRight: 12,
-    marginBottom: 12,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginRight: 8,
   },
   accountOptionActive: {
     backgroundColor: "#1CC29F",
+    borderColor: "#1CC29F",
   },
   accountDot: {
     width: 8,
@@ -520,19 +632,22 @@ const styles = StyleSheet.create({
   dateRangeContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
+    gap: 8,
   },
   dateRangeOption: {
-    width: "48%",
+    flex: 1,
+    minWidth: "30%",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
     alignItems: "center",
-    marginBottom: 12,
   },
   dateRangeOptionActive: {
     backgroundColor: "#1CC29F",
+    borderColor: "#1CC29F",
   },
   dateRangeText: {
     fontSize: 14,
@@ -545,33 +660,44 @@ const styles = StyleSheet.create({
   customDateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
   dateInput: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F9FAFB",
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
+  dateInputIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
   dateInputText: {
     fontSize: 14,
-    marginLeft: 8,
     fontWeight: "500",
+    flex: 1,
+  },
+  dateSeparatorContainer: {
+    paddingHorizontal: 4,
   },
   dateSeparator: {
     fontSize: 14,
-    color: "#9CA3AF",
-    marginHorizontal: 12,
+    color: "#6B7280",
     fontWeight: "500",
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     paddingBottom: 34,
     backgroundColor: "#FFFFFF",
     borderTopWidth: 1,
@@ -580,8 +706,13 @@ const styles = StyleSheet.create({
   applyButton: {
     backgroundColor: "#1CC29F",
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: "center",
+    shadowColor: "#1CC29F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   applyButtonText: {
     fontSize: 16,
@@ -601,6 +732,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     maxWidth: 400,
     width: "90%",
+    overflow: "hidden",
   },
   datePickerHeader: {
     flexDirection: "row",
@@ -617,8 +749,10 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   datePickerButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: "#F3F4F6",
   },
   datePickerButtonText: {
     fontSize: 16,

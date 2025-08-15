@@ -1,5 +1,6 @@
-import { Feather } from "@expo/vector-icons"
+import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
+import { router, useNavigation } from "expo-router"
 import * as SecureStore from "expo-secure-store"
 import { useEffect, useState } from "react"
 import {
@@ -7,7 +8,9 @@ import {
   Alert,
   Dimensions,
   Modal,
+  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,7 +20,6 @@ import { PieChart } from "react-native-chart-kit"
 import TransactionList from "../../src/components/TransactionList"
 import { useAccountsContext } from "../../src/context/AccountContext"
 import { baseUrl } from "../../src/utility/constant"
-
 const screenWidth = Dimensions.get("window").width
 
 const ReportsScreen = () => {
@@ -30,26 +32,28 @@ const ReportsScreen = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth())
   const [selectedWeek, setSelectedWeek] = useState(1)
+  const [selectedAccountId, setSelectedAccountId] = useState("")
   const [customStartDate, setCustomStartDate] = useState(new Date())
   const [customEndDate, setCustomEndDate] = useState(new Date())
   const [showStartDatePicker, setShowStartDatePicker] = useState(false)
   const [showEndDatePicker, setShowEndDatePicker] = useState(false)
+  const [showFiltersModal, setShowFiltersModal] = useState(false)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [showWeekPicker, setShowWeekPicker] = useState(false)
   const { accounts } = useAccountsContext()
-
-  // Chart colors matching your app theme
+  const navigation = useNavigation()
+  // Updated chart colors matching your app theme
   const chartColors = [
-    "#007AFF",
-    "#34C759",
-    "#FF3B30",
-    "#FF9500",
-    "#AF52DE",
-    "#5AC8FA",
-    "#FFCC00",
-    "#FF2D92",
-    "#30D158",
-    "#64D2FF",
+    "#1CC29F", // Primary app color
+    "#10B981", // Success green
+    "#EF4444", // Error red
+    "#F59E0B", // Warning amber
+    "#8B5CF6", // Purple
+    "#06B6D4", // Cyan
+    "#EC4899", // Pink
+    "#84CC16", // Lime
+    "#F97316", // Orange
+    "#6366F1", // Indigo
   ]
 
   const months = [
@@ -69,7 +73,11 @@ const ReportsScreen = () => {
 
   const currentYear = new Date().getFullYear()
   const currentMonth = new Date().getMonth()
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i)
+
+  // Only show past and current years (remove future years)
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i).filter(
+    (year) => year <= currentYear
+  )
 
   useEffect(() => {
     fetchReportData()
@@ -78,6 +86,7 @@ const ReportsScreen = () => {
     selectedYear,
     selectedMonth,
     selectedWeek,
+    selectedAccountId,
     customStartDate,
     customEndDate,
     activeTab,
@@ -86,6 +95,7 @@ const ReportsScreen = () => {
   const getWeeksInMonth = (year, month) => {
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
+    const today = new Date()
     const weeks = []
 
     let weekStart = new Date(firstDay)
@@ -99,28 +109,21 @@ const ReportsScreen = () => {
         weekEnd = new Date(lastDay)
       }
 
-      weeks.push({
-        number: weekNumber,
-        start: new Date(weekStart),
-        end: new Date(weekEnd),
-        label: `Week ${weekNumber} (${weekStart.getDate()}-${weekEnd.getDate()})`,
-      })
+      // Only add weeks that are not entirely in the future
+      if (weekStart <= today) {
+        weeks.push({
+          number: weekNumber,
+          start: new Date(weekStart),
+          end: new Date(weekEnd),
+          label: `Week ${weekNumber} (${weekStart.getDate()}-${weekEnd.getDate()})`,
+        })
+      }
 
       weekStart.setDate(weekStart.getDate() + 7)
       weekNumber++
     }
 
     return weeks
-  }
-
-  const canNavigateToFuture = () => {
-    if (filterType === "month") {
-      return (
-        selectedYear < currentYear ||
-        (selectedYear === currentYear && selectedMonth < currentMonth)
-      )
-    }
-    return selectedYear < currentYear
   }
 
   const getDateRange = () => {
@@ -156,9 +159,15 @@ const ReportsScreen = () => {
     const { startDate, endDate } = getDateRange()
 
     if (filterType === "custom") {
-      return `${new Date(startDate).toLocaleDateString()} - ${new Date(
-        endDate
-      ).toLocaleDateString()}`
+      return `${new Date(startDate).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })} - ${new Date(endDate).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })}`
     }
 
     if (filterType === "week") {
@@ -172,6 +181,34 @@ const ReportsScreen = () => {
     return `${months[selectedMonth]} ${selectedYear}`
   }
 
+  const getSelectedAccountName = () => {
+    if (!selectedAccountId) return "All Accounts"
+    const account = accounts.find((acc) => acc.id === selectedAccountId)
+    return account?.name || "All Accounts"
+  }
+
+  const clearAllFilters = () => {
+    const now = new Date()
+    setSelectedAccountId("")
+    setActiveTab("expense")
+    setFilterType("month")
+    setSelectedYear(now.getFullYear())
+    setSelectedMonth(now.getMonth())
+    setSelectedWeek(1)
+    setCustomStartDate(now)
+    setCustomEndDate(now)
+  }
+
+  const hasActiveFilters = () => {
+    const now = new Date()
+    return (
+      selectedAccountId ||
+      filterType !== "month" ||
+      selectedYear !== now.getFullYear() ||
+      selectedMonth !== now.getMonth()
+    )
+  }
+
   const fetchReportData = async () => {
     setLoading(true)
     try {
@@ -182,6 +219,7 @@ const ReportsScreen = () => {
         type: activeTab,
         limit: "10",
         ...(startDate && endDate && { startDate, endDate }),
+        ...(selectedAccountId && { accountId: selectedAccountId }),
       })
 
       const response = await fetch(
@@ -217,6 +255,7 @@ const ReportsScreen = () => {
         categoryId,
         type: activeTab,
         ...(startDate && endDate && { startDate, endDate }),
+        ...(selectedAccountId && { accountId: selectedAccountId }),
       })
 
       const response = await fetch(`${baseUrl}/transactions?${queryParams}`, {
@@ -260,7 +299,7 @@ const ReportsScreen = () => {
       name: category.categoryInfo?.label || "Unknown",
       population: category.total,
       color: chartColors[index % chartColors.length],
-      legendFontColor: "#1C1C1E",
+      legendFontColor: "#374151",
       legendFontSize: 12,
       percentage: ((category.total / total) * 100).toFixed(1),
     }))
@@ -306,101 +345,234 @@ const ReportsScreen = () => {
     }
   }
 
-  const renderPeriodDisplay = () => (
-    <View style={styles.periodDisplayContainer}>
-      <View style={styles.periodHeader}>
-        <Feather name="calendar" size={18} color="#007AFF" />
-        <Text style={styles.periodText}>Report Period</Text>
-      </View>
-      <Text style={styles.periodValue}>{getDisplayPeriod()}</Text>
-    </View>
+  const renderHeader = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
+      <SafeAreaView style={styles.headerContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push("/(tabs)/records")}
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detailed Reports</Text>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFiltersModal(true)}
+          >
+            <Ionicons name="options" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </>
   )
 
-  const renderFilterSection = () => (
-    <View style={styles.filterContainer}>
-      <View style={styles.filterHeader}>
-        <Feather name="filter" size={20} color="#007AFF" />
-        <Text style={styles.sectionTitle}>Period Filter</Text>
-      </View>
+  const renderCurrentFilters = () => {
+    if (!hasActiveFilters()) return null
 
-      <View style={styles.filterButtons}>
-        {["month", "week", "custom"].map((type) => (
+    return (
+      <View style={styles.currentFiltersContainer}>
+        <View style={styles.filtersHeader}>
+          <Text style={styles.currentFiltersTitle}>Active Filters:</Text>
           <TouchableOpacity
-            key={type}
-            onPress={() => {
-              setFilterType(type)
-              if (type === "month") {
-                setShowMonthPicker(true)
-              } else if (type === "week") {
-                setShowMonthPicker(true)
-              } else if (type === "custom") {
-                setShowStartDatePicker(true)
-              }
-            }}
-            style={[
-              styles.filterButton,
-              filterType === type && styles.activeFilterButton,
-            ]}
+            style={styles.clearFiltersButton}
+            onPress={clearAllFilters}
           >
-            <Text
-              style={[
-                styles.filterButtonText,
-                filterType === type && styles.activeFilterButtonText,
-              ]}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </Text>
+            <Ionicons name="close-circle" size={16} color="#EF4444" />
+            <Text style={styles.clearFiltersText}>Clear All</Text>
           </TouchableOpacity>
-        ))}
-      </View>
-
-      {filterType && (
-        <TouchableOpacity
-          style={styles.currentSelectionButton}
-          onPress={() => {
-            if (filterType === "month") {
-              setShowMonthPicker(true)
-            } else if (filterType === "week") {
-              setShowMonthPicker(true)
-            } else if (filterType === "custom") {
-              setShowStartDatePicker(true)
-            }
-          }}
-        >
-          <View style={styles.selectionContent}>
-            <Feather name="calendar" size={16} color="#007AFF" />
-            <Text style={styles.currentSelectionText}>
-              {getDisplayPeriod()}
-            </Text>
+        </View>
+        <View style={styles.filterChips}>
+          {selectedAccountId && (
+            <View style={styles.filterChip}>
+              <Text style={styles.filterChipText}>
+                {getSelectedAccountName()}
+              </Text>
+            </View>
+          )}
+          <View style={styles.filterChip}>
+            <Text style={styles.filterChipText}>{getDisplayPeriod()}</Text>
           </View>
-          <Feather name="chevron-right" size={16} color="#8E8E93" />
-        </TouchableOpacity>
-      )}
+        </View>
+      </View>
+    )
+  }
 
-      {/* Date Pickers for Custom */}
-      {showStartDatePicker && filterType === "custom" && (
-        <DateTimePicker
-          value={customStartDate}
-          mode="date"
-          display="default"
-          maximumDate={new Date()}
-          onChange={(event, date) => onDateChange(event, date, "start")}
-        />
-      )}
-      {showEndDatePicker && filterType === "custom" && (
-        <DateTimePicker
-          value={customEndDate}
-          mode="date"
-          display="default"
-          minimumDate={customStartDate}
-          maximumDate={new Date()}
-          onChange={(event, date) => onDateChange(event, date, "end")}
-        />
-      )}
+  const renderFiltersModal = () => (
+    <Modal visible={showFiltersModal} transparent animationType="slide">
+      <View style={styles.modalOverlay}>
+        <View style={styles.filtersModal}>
+          <View style={styles.modalHandle} />
 
-      {renderMonthYearPickerModal()}
-      {renderWeekPickerModal()}
-    </View>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Report Filters</Text>
+            <TouchableOpacity
+              onPress={() => setShowFiltersModal(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.modalContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Account Filter */}
+            <View style={styles.filterSection}>
+              <View style={styles.filterSectionHeader}>
+                <View style={styles.filterSectionIconContainer}>
+                  <Ionicons name="wallet-outline" size={18} color="#1CC29F" />
+                </View>
+                <Text style={styles.filterSectionTitle}>Account</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.accountChips}
+              >
+                <TouchableOpacity
+                  style={[
+                    styles.accountChip,
+                    !selectedAccountId && styles.selectedChip,
+                  ]}
+                  onPress={() => setSelectedAccountId("")}
+                >
+                  <Text
+                    style={[
+                      styles.accountChipText,
+                      !selectedAccountId && styles.selectedChipText,
+                    ]}
+                  >
+                    All Accounts
+                  </Text>
+                </TouchableOpacity>
+                {accounts.map((account) => (
+                  <TouchableOpacity
+                    key={account.id}
+                    style={[
+                      styles.accountChip,
+                      selectedAccountId === account.id && styles.selectedChip,
+                    ]}
+                    onPress={() => setSelectedAccountId(account.id)}
+                  >
+                    <View
+                      style={[
+                        styles.accountDot,
+                        { backgroundColor: account.color || "#6B7280" },
+                      ]}
+                    />
+                    <Text
+                      style={[
+                        styles.accountChipText,
+                        selectedAccountId === account.id &&
+                          styles.selectedChipText,
+                      ]}
+                    >
+                      {account.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Time Period */}
+            <View style={styles.filterSection}>
+              <View style={styles.filterSectionHeader}>
+                <View style={styles.filterSectionIconContainer}>
+                  <Ionicons name="calendar-outline" size={18} color="#1CC29F" />
+                </View>
+                <Text style={styles.filterSectionTitle}>Time Period</Text>
+              </View>
+              <View style={styles.periodButtons}>
+                {["month", "week", "custom"].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.periodButton,
+                      filterType === type && styles.selectedPeriodButton,
+                    ]}
+                    onPress={() => {
+                      setFilterType(type)
+                      if (type === "month") {
+                        setShowMonthPicker(true)
+                      } else if (type === "week") {
+                        setShowMonthPicker(true)
+                      } else if (type === "custom") {
+                        setShowStartDatePicker(true)
+                      }
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.periodButtonText,
+                        filterType === type && styles.selectedPeriodButtonText,
+                      ]}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity
+                style={styles.periodSelection}
+                onPress={() => {
+                  if (filterType === "month") {
+                    setShowMonthPicker(true)
+                  } else if (filterType === "week") {
+                    setShowMonthPicker(true)
+                  } else if (filterType === "custom") {
+                    setShowStartDatePicker(true)
+                  }
+                }}
+              >
+                <View style={styles.periodSelectionContent}>
+                  <View style={styles.periodSelectionIconContainer}>
+                    <Ionicons name="calendar" size={16} color="#1CC29F" />
+                  </View>
+                  <Text style={styles.periodSelectionText}>
+                    {getDisplayPeriod()}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={() => setShowFiltersModal(false)}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+
+          {/* Date Pickers */}
+          {showStartDatePicker && filterType === "custom" && (
+            <DateTimePicker
+              value={customStartDate}
+              mode="date"
+              display="default"
+              maximumDate={new Date()}
+              onChange={(event, date) => onDateChange(event, date, "start")}
+            />
+          )}
+          {showEndDatePicker && filterType === "custom" && (
+            <DateTimePicker
+              value={customEndDate}
+              mode="date"
+              display="default"
+              minimumDate={customStartDate}
+              maximumDate={new Date()}
+              onChange={(event, date) => onDateChange(event, date, "end")}
+            />
+          )}
+        </View>
+      </View>
+    </Modal>
   )
 
   const renderMonthYearPickerModal = () => (
@@ -419,7 +591,7 @@ const ReportsScreen = () => {
               onPress={() => setShowMonthPicker(false)}
               style={styles.closeButton}
             >
-              <Feather name="x" size={20} color="#8E8E93" />
+              <Ionicons name="close" size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
@@ -431,10 +603,23 @@ const ReportsScreen = () => {
             <View style={styles.monthNavigation}>
               <TouchableOpacity
                 onPress={() => navigateMonth("prev")}
-                style={[styles.navButton, styles.prevButton]}
+                style={[
+                  styles.navButton,
+                  selectedYear === years[0] &&
+                    selectedMonth === 0 &&
+                    styles.disabledButton,
+                ]}
                 disabled={selectedYear === years[0] && selectedMonth === 0}
               >
-                <Feather name="chevron-left" size={24} color="#007AFF" />
+                <Ionicons
+                  name="chevron-back"
+                  size={24}
+                  color={
+                    selectedYear === years[0] && selectedMonth === 0
+                      ? "#D1D5DB"
+                      : "#1CC29F"
+                  }
+                />
               </TouchableOpacity>
 
               <View style={styles.currentPeriodDisplay}>
@@ -446,18 +631,32 @@ const ReportsScreen = () => {
 
               <TouchableOpacity
                 onPress={() => navigateMonth("next")}
-                style={[styles.navButton, styles.nextButton]}
+                style={[
+                  styles.navButton,
+                  selectedYear === currentYear &&
+                    selectedMonth >= currentMonth &&
+                    styles.disabledButton,
+                ]}
                 disabled={
                   selectedYear === currentYear && selectedMonth >= currentMonth
                 }
               >
-                <Feather name="chevron-right" size={24} color="#007AFF" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color={
+                    selectedYear === currentYear &&
+                    selectedMonth >= currentMonth
+                      ? "#D1D5DB"
+                      : "#1CC29F"
+                  }
+                />
               </TouchableOpacity>
             </View>
 
             {/* Year Selection */}
             <View style={styles.yearSection}>
-              <Text style={styles.sectionLabel}>Quick Year Selection</Text>
+              <Text style={styles.sectionLabel}>Select Year</Text>
               <View style={styles.yearGrid}>
                 {years.map((year) => (
                   <TouchableOpacity
@@ -516,7 +715,7 @@ const ReportsScreen = () => {
               onPress={() => setShowWeekPicker(false)}
               style={styles.closeButton}
             >
-              <Feather name="x" size={20} color="#8E8E93" />
+              <Ionicons name="close" size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
@@ -553,13 +752,13 @@ const ReportsScreen = () => {
                         selectedWeek === week.number && styles.selectedWeekDate,
                       ]}
                     >
-                      {week.start.toLocaleDateString()} -{" "}
-                      {week.end.toLocaleDateString()}
+                      {week.start.toLocaleDateString("en-GB")} -{" "}
+                      {week.end.toLocaleDateString("en-GB")}
                     </Text>
                   </View>
                   {selectedWeek === week.number && (
                     <View style={styles.checkIcon}>
-                      <Feather name="check" size={18} color="white" />
+                      <Ionicons name="checkmark" size={18} color="white" />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -579,38 +778,43 @@ const ReportsScreen = () => {
 
     return (
       <View style={styles.cashFlowContainer}>
-        <Text style={styles.sectionTitle}>Financial Overview</Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionIconContainer}>
+            <Ionicons name="trending-up" size={18} color="#1CC29F" />
+          </View>
+          <Text style={styles.sectionTitle}>Financial Overview</Text>
+        </View>
 
         <View style={styles.cashFlowGrid}>
           <View style={[styles.cashFlowCard, styles.incomeCard]}>
             <View style={styles.cashFlowIconContainer}>
-              <Feather name="arrow-down-left" size={20} color="#34C759" />
+              <Ionicons name="arrow-down" size={18} color="#10B981" />
             </View>
             <Text style={styles.cashFlowLabel}>Income</Text>
-            <Text style={[styles.cashFlowAmount, { color: "#34C759" }]}>
+            <Text style={[styles.cashFlowAmount, { color: "#10B981" }]}>
               {formatCurrency(totalIncome)}
             </Text>
           </View>
 
           <View style={[styles.cashFlowCard, styles.expenseCard]}>
             <View style={styles.cashFlowIconContainer}>
-              <Feather name="arrow-up-right" size={20} color="#FF3B30" />
+              <Ionicons name="arrow-up" size={18} color="#EF4444" />
             </View>
             <Text style={styles.cashFlowLabel}>Expenses</Text>
-            <Text style={[styles.cashFlowAmount, { color: "#FF3B30" }]}>
+            <Text style={[styles.cashFlowAmount, { color: "#EF4444" }]}>
               {formatCurrency(totalExpense)}
             </Text>
           </View>
 
           <View style={[styles.cashFlowCard, styles.netFlowCard]}>
             <View style={styles.cashFlowIconContainer}>
-              <Feather name="trending-up" size={20} color="#007AFF" />
+              <Ionicons name="trending-up" size={18} color="#1CC29F" />
             </View>
             <Text style={styles.cashFlowLabel}>Net Flow</Text>
             <Text
               style={[
                 styles.cashFlowAmount,
-                { color: netCashFlow >= 0 ? "#34C759" : "#FF3B30" },
+                { color: netCashFlow >= 0 ? "#10B981" : "#EF4444" },
               ]}
             >
               {formatCurrency(netCashFlow)}
@@ -619,10 +823,10 @@ const ReportsScreen = () => {
 
           <View style={[styles.cashFlowCard, styles.savingsCard]}>
             <View style={styles.cashFlowIconContainer}>
-              <Feather name="target" size={20} color="#AF52DE" />
+              <Ionicons name="star" size={18} color="#8B5CF6" />
             </View>
             <Text style={styles.cashFlowLabel}>Savings Rate</Text>
-            <Text style={[styles.cashFlowAmount, { color: "#AF52DE" }]}>
+            <Text style={[styles.cashFlowAmount, { color: "#8B5CF6" }]}>
               {savingsRate}%
             </Text>
           </View>
@@ -637,11 +841,13 @@ const ReportsScreen = () => {
         onPress={() => setActiveTab("expense")}
         style={[styles.tab, activeTab === "expense" && styles.activeTab]}
       >
-        <Feather
-          name="arrow-up-right"
-          size={16}
-          color={activeTab === "expense" ? "white" : "#8E8E93"}
-        />
+        <View style={styles.tabIconContainer}>
+          <Ionicons
+            name="arrow-up"
+            size={16}
+            color={activeTab === "expense" ? "#FFFFFF" : "#6B7280"}
+          />
+        </View>
         <Text
           style={[
             styles.tabText,
@@ -656,11 +862,13 @@ const ReportsScreen = () => {
         onPress={() => setActiveTab("income")}
         style={[styles.tab, activeTab === "income" && styles.activeTab]}
       >
-        <Feather
-          name="arrow-down-left"
-          size={16}
-          color={activeTab === "income" ? "white" : "#8E8E93"}
-        />
+        <View style={styles.tabIconContainer}>
+          <Ionicons
+            name="arrow-down"
+            size={16}
+            color={activeTab === "income" ? "#FFFFFF" : "#6B7280"}
+          />
+        </View>
         <Text
           style={[
             styles.tabText,
@@ -680,7 +888,7 @@ const ReportsScreen = () => {
       return (
         <View style={styles.noDataContainer}>
           <View style={styles.noDataIcon}>
-            <Feather name="pie-chart" size={48} color="#C7C7CC" />
+            <Ionicons name="pie-chart" size={48} color="#D1D5DB" />
           </View>
           <Text style={styles.noDataText}>No Data Available</Text>
           <Text style={styles.noDataSubtext}>
@@ -693,13 +901,19 @@ const ReportsScreen = () => {
 
     return (
       <View style={styles.chartContainer}>
-        <Text style={styles.chartTitle}>
-          {activeTab === "expense" ? "Expense" : "Income"} Breakdown
-        </Text>
+        <View style={styles.chartHeader}>
+          <View style={styles.chartIconContainer}>
+            <Ionicons name="pie-chart" size={18} color="#1CC29F" />
+          </View>
+          <Text style={styles.chartTitle}>
+            {activeTab === "expense" ? "Expense" : "Income"} Breakdown (
+            {getSelectedAccountName()})
+          </Text>
+        </View>
 
         <PieChart
           data={chartData}
-          width={screenWidth - 40}
+          width={screenWidth - 72}
           height={220}
           chartConfig={{
             color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
@@ -723,7 +937,12 @@ const ReportsScreen = () => {
 
     return (
       <View style={styles.categoryListContainer}>
-        <Text style={styles.sectionTitle}>Category Details</Text>
+        <View style={styles.categoryHeader}>
+          <View style={styles.categoryIconContainer}>
+            <Ionicons name="list" size={18} color="#1CC29F" />
+          </View>
+          <Text style={styles.sectionTitle}>Category Details</Text>
+        </View>
 
         {reportData.topCategories.map((category, index) => {
           const percentage = ((category.total / total) * 100).toFixed(1)
@@ -761,7 +980,9 @@ const ReportsScreen = () => {
                 <Text style={styles.categoryPercentage}>{percentage}%</Text>
               </View>
 
-              <Feather name="chevron-right" size={16} color="#C7C7CC" />
+              <View style={styles.categoryChevron}>
+                <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
+              </View>
             </TouchableOpacity>
           )
         })}
@@ -781,9 +1002,9 @@ const ReportsScreen = () => {
         <View style={styles.transactionModalHeader}>
           <TouchableOpacity
             onPress={() => setSelectedCategory(null)}
-            style={styles.backButton}
+            style={styles.transactionBackButton}
           >
-            <Feather name="chevron-left" size={24} color="#007AFF" />
+            <Ionicons name="chevron-back" size={24} color="#1CC29F" />
           </TouchableOpacity>
           <View style={styles.modalTitleContainer}>
             <Text style={styles.modalTitle}>
@@ -809,263 +1030,490 @@ const ReportsScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {renderFilterSection()}
-      {renderPeriodDisplay()}
-      {renderCashFlowSummary()}
-      {renderCategoryTabs()}
+    <View style={styles.container}>
+      {renderHeader()}
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {renderCurrentFilters()}
+        {renderCashFlowSummary()}
+        {renderCategoryTabs()}
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading insights...</Text>
-        </View>
-      ) : (
-        <>
-          {renderPieChart()}
-          {renderCategoryList()}
-        </>
-      )}
-    </ScrollView>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#1CC29F" />
+            <Text style={styles.loadingText}>Loading insights...</Text>
+          </View>
+        ) : (
+          <>
+            {renderPieChart()}
+            {renderCategoryList()}
+          </>
+        )}
+      </ScrollView>
+
+      {renderFiltersModal()}
+      {renderMonthYearPickerModal()}
+      {renderWeekPickerModal()}
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9FAFB",
+  },
+
+  // Header
+  headerContainer: {
+    backgroundColor: "#1CC29F",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    minHeight: 56,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    flex: 1,
+    textAlign: "center",
+    marginHorizontal: 16,
+  },
+  filterButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  content: {
+    flex: 1,
     padding: 16,
   },
 
-  // Filter Section
-  filterContainer: {
-    backgroundColor: "white",
-    borderRadius: 12,
+  // Current Filters
+  currentFiltersContainer: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  filterHeader: {
+  filtersHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  currentFiltersTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  clearFiltersButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#EF4444",
+    marginLeft: 4,
+  },
+  filterChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  filterChip: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  filterChipText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#1CC29F",
+  },
+
+  // Filters Modal
+  filtersModal: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "85%",
+    paddingBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: "#D1D5DB",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+  },
+  modalContent: {
+    maxHeight: 500,
+  },
+
+  // Filter Sections
+  filterSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  filterSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 17,
+  filterSectionIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
     fontWeight: "600",
-    color: "#1C1C1E",
-    marginLeft: 8,
+    color: "#111827",
   },
-  filterButtons: {
+
+  // Account Filter
+  accountChips: {
     flexDirection: "row",
-    backgroundColor: "#F2F2F7",
-    borderRadius: 8,
-    padding: 2,
-    marginBottom: 12,
   },
-  filterButton: {
+  accountChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+  },
+  selectedChip: {
+    backgroundColor: "#1CC29F",
+    borderColor: "#1CC29F",
+  },
+  accountDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  accountChipText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#6B7280",
+  },
+  selectedChipText: {
+    color: "#FFFFFF",
+  },
+
+  // Period Buttons
+  periodButtons: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
+  },
+  periodButton: {
     flex: 1,
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 8,
     alignItems: "center",
   },
-  activeFilterButton: {
-    backgroundColor: "#007AFF",
+  selectedPeriodButton: {
+    backgroundColor: "#1CC29F",
   },
-  filterButtonText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#8E8E93",
+  periodButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
   },
-  activeFilterButtonText: {
-    color: "white",
+  selectedPeriodButtonText: {
+    color: "#FFFFFF",
   },
-  currentSelectionButton: {
+  periodSelection: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#E5E5EA",
-    borderRadius: 8,
-    backgroundColor: "#FAFAFA",
-  },
-  selectionContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  currentSelectionText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1C1C1E",
-    marginLeft: 8,
-  },
-
-  // Period Display
-  periodDisplayContainer: {
-    backgroundColor: "white",
-    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
   },
-  periodHeader: {
+  periodSelectionContent: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    gap: 8,
   },
-  periodText: {
-    fontSize: 15,
+  periodSelectionIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  periodSelectionText: {
+    fontSize: 14,
     fontWeight: "500",
-    color: "#8E8E93",
-    marginLeft: 8,
-  },
-  periodValue: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1C1C1E",
+    color: "#111827",
   },
 
   // Cash Flow
   cashFlowContainer: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  sectionIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
   },
   cashFlowGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
+    gap: 12,
   },
   cashFlowCard: {
     flex: 1,
     minWidth: "47%",
-    padding: 12,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     alignItems: "center",
   },
   cashFlowIconContainer: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 8,
   },
   incomeCard: {
-    backgroundColor: "#E8F5E8",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
   },
   expenseCard: {
-    backgroundColor: "#FFE8E6",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
   },
   netFlowCard: {
-    backgroundColor: "#E6F3FF",
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
   },
   savingsCard: {
-    backgroundColor: "#F0E6FF",
+    backgroundColor: "#FAF5FF",
+    borderWidth: 1,
+    borderColor: "#E9D5FF",
   },
   cashFlowLabel: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#8E8E93",
+    color: "#6B7280",
     marginBottom: 4,
     textAlign: "center",
   },
   cashFlowAmount: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "700",
     textAlign: "center",
   },
 
   // Tabs
   tabContainer: {
     flexDirection: "row",
-    backgroundColor: "white",
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 4,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   tab: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
   },
   activeTab: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#1CC29F",
+  },
+  tabIconContainer: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   tabText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#8E8E93",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
   },
   activeTabText: {
-    color: "white",
+    color: "#FFFFFF",
   },
 
   // Chart
   chartContainer: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  chartHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    alignSelf: "flex-start",
+  },
+  chartIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
   chartTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1C1C1E",
-    marginBottom: 16,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
   },
 
   // Category List
   categoryListContainer: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  categoryIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
   categoryItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5EA",
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   },
   categoryLeft: {
     flexDirection: "row",
@@ -1082,28 +1530,32 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoryName: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1C1C1E",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
   },
   categoryCount: {
-    fontSize: 13,
-    color: "#8E8E93",
-    marginTop: 1,
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 2,
   },
   categoryRight: {
     alignItems: "flex-end",
-    marginRight: 8,
+    marginRight: 12,
   },
   categoryAmount: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1C1C1E",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
   },
   categoryPercentage: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "500",
-    color: "#8E8E93",
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  categoryChevron: {
+    padding: 4,
   },
 
   // Loading & No Data
@@ -1111,63 +1563,53 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
+    paddingVertical: 60,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    marginBottom: 16,
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 15,
+    marginTop: 16,
+    fontSize: 16,
     fontWeight: "500",
-    color: "#8E8E93",
+    color: "#6B7280",
   },
   noDataContainer: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
-    backgroundColor: "white",
-    borderRadius: 12,
-    marginBottom: 12,
+    paddingVertical: 60,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    marginBottom: 16,
   },
   noDataIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#F2F2F7",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   noDataText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#8E8E93",
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginBottom: 8,
   },
   noDataSubtext: {
-    fontSize: 15,
-    color: "#C7C7CC",
+    fontSize: 14,
+    color: "#9CA3AF",
     textAlign: "center",
+    paddingHorizontal: 20,
   },
 
-  // Modals
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
-    justifyContent: "flex-end",
-  },
+  // Period Picker Modal
   modernPickerModal: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "75%",
-  },
-  modalHandle: {
-    width: 36,
-    height: 4,
-    backgroundColor: "#C7C7CC",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 8,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "80%",
   },
   pickerHeader: {
     flexDirection: "row",
@@ -1175,19 +1617,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5EA",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
   },
   pickerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1C1C1E",
-  },
-  closeButton: {
-    padding: 4,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
   },
   pickerContent: {
-    maxHeight: 400,
+    maxHeight: 500,
   },
 
   // Month Navigation
@@ -1196,40 +1635,46 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 24,
   },
   navButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F2F2F7",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F0FDF4",
     alignItems: "center",
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  disabledButton: {
+    backgroundColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
   },
   currentPeriodDisplay: {
     alignItems: "center",
   },
   currentMonthText: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#1C1C1E",
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#111827",
   },
   currentYearText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: "500",
-    color: "#8E8E93",
-    marginTop: 2,
+    color: "#6B7280",
+    marginTop: 4,
   },
 
   // Year Section
   yearSection: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   sectionLabel: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#8E8E93",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#6B7280",
     marginBottom: 12,
   },
   yearGrid: {
@@ -1240,19 +1685,22 @@ const styles = StyleSheet.create({
   yearChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: "#F2F2F7",
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   selectedYearChip: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#1CC29F",
+    borderColor: "#1CC29F",
   },
   yearChipText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1C1C1E",
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
   },
   selectedYearChipText: {
-    color: "white",
+    color: "#FFFFFF",
   },
 
   // Week List
@@ -1265,35 +1713,38 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 16,
     borderRadius: 12,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9FAFB",
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   selectedWeekCard: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#1CC29F",
+    borderColor: "#1CC29F",
   },
   weekCardContent: {
     flex: 1,
   },
   weekTitle: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#1C1C1E",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
   },
   selectedWeekTitle: {
-    color: "white",
+    color: "#FFFFFF",
   },
   weekDate: {
-    fontSize: 13,
-    color: "#8E8E93",
-    marginTop: 2,
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 4,
   },
   selectedWeekDate: {
     color: "rgba(255, 255, 255, 0.8)",
   },
   checkIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     alignItems: "center",
     justifyContent: "center",
@@ -1302,48 +1753,78 @@ const styles = StyleSheet.create({
   // Modal Actions
   modalActions: {
     padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
   },
-  primaryButton: {
-    backgroundColor: "#007AFF",
+  applyButton: {
+    backgroundColor: "#1CC29F",
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: "center",
+    shadowColor: "#1CC29F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  applyButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  primaryButton: {
+    backgroundColor: "#1CC29F",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    shadowColor: "#1CC29F",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   primaryButtonText: {
-    color: "white",
-    fontSize: 17,
-    fontWeight: "600",
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "700",
   },
 
   // Transaction Modal
   modalContainer: {
     flex: 1,
-    backgroundColor: "#F2F2F7",
+    backgroundColor: "#F9FAFB",
   },
   transactionModalHeader: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: "white",
-    borderBottomWidth: 0.5,
-    borderBottomColor: "#E5E5EA",
+    padding: 20,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  backButton: {
-    marginRight: 12,
-    padding: 4,
+  transactionBackButton: {
+    marginRight: 16,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F0FDF4",
   },
   modalTitleContainer: {
     flex: 1,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#1C1C1E",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
   },
   modalSubtitle: {
-    fontSize: 15,
-    color: "#8E8E93",
-    marginTop: 2,
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 4,
   },
 })
 

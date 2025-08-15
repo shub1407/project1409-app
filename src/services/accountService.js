@@ -43,15 +43,13 @@ export const accountService = {
     }
   },
 
-  // Update account
-  updateAccount: async (accountId, accountData) => {
+  // Delete account
+  deleteAccount: async (accountId) => {
     try {
       const headers = await getAuthHeaders()
-      const response = await axios.put(
-        `${baseUrl}/accounts/${accountId}`,
-        accountData,
-        { headers }
-      )
+      const response = await axios.delete(`${baseUrl}/accounts/${accountId}`, {
+        headers,
+      })
       return {
         success: true,
         data: response.data,
@@ -61,13 +59,37 @@ export const accountService = {
     }
   },
 
-  // Delete account
-  deleteAccount: async (accountId) => {
+  //update account order
+  updateAccountsOrder: async (accountsData) => {
+    console.log("Updating account order with data:", accountsData)
+    const headers = await getAuthHeaders()
+    console.log("Headers for updateAccountsOrder:", headers)
+    console.log(
+      "Base URL for updateAccountsOrder:",
+      `${baseUrl}/accounts/reorder/bulk-update-order`
+    )
+    const response = await axios.put(
+      `${baseUrl}/accounts/reorder/bulk-update-order`,
+      { accounts: accountsData },
+      { headers }
+    )
+    console.log("Response from updateAccountsOrder:", response.data)
+    console.log("Response from updateAccountsOrder:", response.data)
+    return {
+      success: true,
+      data: response.data,
+    }
+  },
+
+  // Update individual account order (alternative)
+  updateAccountOrder: async (accountId, order) => {
     try {
       const headers = await getAuthHeaders()
-      const response = await axios.delete(`${baseUrl}/accounts/${accountId}`, {
-        headers,
-      })
+      const response = await axios.put(
+        `${baseUrl}/accounts/${accountId}/order`,
+        { order },
+        { headers }
+      )
       return {
         success: true,
         data: response.data,

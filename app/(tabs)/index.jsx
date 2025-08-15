@@ -66,7 +66,7 @@ export default function AccountsScreen() {
   }
 
   const handleSettingsPress = () => {
-    console.log("Settings pressed")
+    router.push("/(tabs)/account-setting")
   }
 
   return (

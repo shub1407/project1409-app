@@ -7,6 +7,7 @@ import {
   Animated,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -15,10 +16,10 @@ import {
   View,
 } from "react-native"
 import FilterModal from "../../src/components/FilterModal"
+import SummaryCard from "../../src/components/SummaryCard" // Import the new component
 import TransactionList from "../../src/components/TransactionList"
 import { useAccountsContext } from "../../src/context/AccountContext"
 import transactionService from "../../src/services/transactionService"
-
 export default function RecordsScreen() {
   const [allTransactions, setAllTransactions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -34,13 +35,26 @@ export default function RecordsScreen() {
     accountId: "",
     startDate: "",
     endDate: "",
-    dateRange: "all",
+    dateRange: "month", // Changed default to "month" instead of "all"
   })
 
   const lastFetchParams = useRef(null)
   const searchTimeoutRef = useRef(null)
 
   const { accounts } = useAccountsContext()
+
+  // Initialize with current month date range
+  useEffect(() => {
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
+    setFilters((prev) => ({
+      ...prev,
+      startDate: monthStart.toISOString().split("T")[0],
+      endDate: monthEnd.toISOString().split("T")[0],
+    }))
+  }, [])
 
   // Debounce search input
   const debouncedSearch = useCallback((text) => {
@@ -200,12 +214,16 @@ export default function RecordsScreen() {
   }, [])
 
   const handleClearFilters = useCallback(() => {
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+
     setFilters({
       type: "",
       accountId: "",
-      startDate: "",
-      endDate: "",
-      dateRange: "all",
+      startDate: monthStart.toISOString().split("T")[0],
+      endDate: monthEnd.toISOString().split("T")[0],
+      dateRange: "month",
     })
     setSearchText("")
     setSearchQuery("")
@@ -214,14 +232,60 @@ export default function RecordsScreen() {
     lastFetchParams.current = null
   }, [isSearchExpanded])
 
+  // Handler for account change from SummaryCard
+  const handleAccountChange = useCallback((accountId) => {
+    setFilters((prev) => ({
+      ...prev,
+      accountId: accountId,
+    }))
+    lastFetchParams.current = null
+  }, [])
+
+  // Handler for period change from SummaryCard
+  const handlePeriodChange = useCallback((dateRange) => {
+    const range = getDateRangeFromFilter(dateRange)
+    setFilters((prev) => ({
+      ...prev,
+      dateRange: dateRange,
+      startDate: range.startDate || prev.startDate,
+      endDate: range.endDate || prev.endDate,
+    }))
+    lastFetchParams.current = null
+  }, [])
+
   const hasActiveFilters = useMemo(() => {
     return (
       filters.type ||
       filters.accountId ||
-      filters.dateRange !== "all" ||
+      filters.dateRange !== "month" ||
       searchQuery.trim()
     )
   }, [filters, searchQuery])
+
+  // Create enhanced TransactionList with SummaryCard
+  const TransactionListWithSummary = useCallback(
+    ({ transactions, accounts, transactionSummary, ...props }) => {
+      return (
+        <TransactionList
+          transactions={transactions}
+          accounts={accounts}
+          transactionSummary={transactionSummary}
+          ListHeaderComponent={() => (
+            <SummaryCard
+              transactionSummary={transactionSummary}
+              accounts={accounts}
+              selectedAccountId={filters.accountId}
+              onAccountChange={handleAccountChange}
+              filters={filters}
+              onPeriodChange={handlePeriodChange}
+            />
+          )}
+          {...props}
+        />
+      )
+    },
+    [filters, handleAccountChange, handlePeriodChange]
+  )
 
   return (
     <>
@@ -303,10 +367,7 @@ export default function RecordsScreen() {
             <Text style={styles.loadingText}>Loading transactions...</Text>
           </View>
         ) : (
-          <TransactionList
-            transactions={filteredTransactions}
-            accounts={accounts}
-            transactionSummary={transactionSummary}
+          <ScrollView
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -315,11 +376,24 @@ export default function RecordsScreen() {
                 tintColor="#1CC29F"
               />
             }
-            onTransactionUpdate={() => {
-              lastFetchParams.current = null
-              fetchTransactions()
-            }}
-          />
+          >
+            <SummaryCard
+              transactionSummary={transactionSummary}
+              accounts={accounts}
+              selectedAccountId={filters.accountId}
+              onAccountChange={handleAccountChange}
+              filters={filters}
+              onPeriodChange={handlePeriodChange}
+            />
+            <TransactionList
+              transactions={filteredTransactions}
+              accounts={accounts}
+              onTransactionUpdate={() => {
+                lastFetchParams.current = null
+                fetchTransactions()
+              }}
+            />
+          </ScrollView>
         )}
 
         <FilterModal

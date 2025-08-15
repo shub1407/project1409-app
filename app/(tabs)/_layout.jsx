@@ -57,7 +57,7 @@ export default function TabLayout() {
               name="records"
               options={{
                 title: "Records",
-                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
+                // Hide tab bar on this screen
                 tabBarIcon: ({ color, size, focused }) => (
                   <Ionicons
                     name={focused ? "list" : "list-outline"}
@@ -129,6 +129,24 @@ export default function TabLayout() {
                 title: "Add Account",
                 href: null, // This prevents it from showing in the tab bar
                 tabBarStyle: { display: "none" }, // Hide tab bar on this screen
+              }}
+            />
+            <Tabs.Screen
+              name="reports"
+              options={{
+                title: "Detailed Report",
+                href: null, // This prevents it from showing in the tab bar
+                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
+                // Hide tab bar on this screen
+              }}
+            />
+            <Tabs.Screen
+              name="account-setting"
+              options={{
+                title: "Account Settings",
+                href: null, // This prevents it from showing in the tab bar
+                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
+                // Hide tab bar on this screen
               }}
             />
           </Tabs>
