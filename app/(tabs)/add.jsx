@@ -1,10 +1,12 @@
 import { Ionicons } from "@expo/vector-icons"
+import DateTimePicker from "@react-native-community/datetimepicker"
 import { router } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -17,6 +19,7 @@ import { useAccountsContext } from "../../src/context/AccountContext"
 import { useCategoryContext } from "../../src/context/CategoryContext"
 import transactionService from "../../src/services/transactionService"
 import styles from "../../src/styles/add"
+
 export default function AddTransactionScreen() {
   const [formData, setFormData] = useState({
     type: "expense",
@@ -28,6 +31,11 @@ export default function AddTransactionScreen() {
     date: new Date().toISOString().slice(0, 10),
     note: "",
   })
+
+  // Date picker state
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [tempDate, setTempDate] = useState(new Date())
+
   const {
     expenseCategories,
     incomeCategories,
@@ -41,12 +49,14 @@ export default function AddTransactionScreen() {
     refreshAccounts,
     error: accountsError,
   } = useAccountsContext()
+
   const [loading, setLoading] = useState(false)
   const [showTypeModal, setShowTypeModal] = useState(false)
   const [showFromAccountModal, setShowFromAccountModal] = useState(false)
   const [showToAccountModal, setShowToAccountModal] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showDateModal, setShowDateModal] = useState(false)
+
   const resetForm = useCallback(() => {
     setFormData({
       type: "income",
@@ -59,6 +69,7 @@ export default function AddTransactionScreen() {
       note: "",
     })
   }, [])
+
   // Transaction Types
   const transactionTypes = useMemo(
     () => [
@@ -102,13 +113,59 @@ export default function AddTransactionScreen() {
   )
 
   // Categories based on transaction type
-
   const categories =
     formData.type === "expense"
       ? expenseCategories
       : formData.type === "income"
       ? incomeCategories
       : []
+
+  // Date picker handlers
+  const formatDateLocal = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, "0")
+    const day = String(date.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
+  }
+
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false)
+      if (selectedDate) {
+        const dateString = formatDateLocal(selectedDate)
+        updateFormData("date", dateString)
+      }
+    } else {
+      if (selectedDate) {
+        setTempDate(selectedDate)
+      }
+    }
+  }
+
+  const handleIOSDateConfirm = () => {
+    const dateString = formatDateLocal(tempDate)
+    updateFormData("date", dateString)
+    setShowDatePicker(false)
+  }
+
+  const formatDateForDisplay = (dateString) => {
+    const date = new Date(dateString + "T00:00:00")
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today"
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday"
+    } else {
+      return date.toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    }
+  }
 
   const handleSave = useCallback(async () => {
     // Validation
@@ -576,14 +633,35 @@ export default function AddTransactionScreen() {
             </View>
           )}
 
-          {/* Date */}
+          {/* Enhanced Date Picker */}
           <View style={styles.section}>
             <TouchableOpacity
-              style={styles.dateCard}
-              onPress={() => setShowDateModal(true)}
+              style={[styles.dateCard, { borderColor: `${getTypeColor()}30` }]}
+              onPress={() => {
+                setTempDate(new Date(formData.date + "T00:00:00"))
+                setShowDatePicker(true)
+              }}
             >
-              <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-              <Text style={styles.dateText}>{formData.date}</Text>
+              <View style={styles.dateLeft}>
+                <View
+                  style={[
+                    styles.dateIconContainer,
+                    { backgroundColor: `${getTypeColor()}20` },
+                  ]}
+                >
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color={getTypeColor()}
+                  />
+                </View>
+                <View style={styles.dateInfo}>
+                  <Text style={styles.dateLabel}>Date</Text>
+                  <Text style={[styles.dateText, { color: getTypeColor() }]}>
+                    {formatDateForDisplay(formData.date)}
+                  </Text>
+                </View>
+              </View>
               <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
@@ -610,7 +688,69 @@ export default function AddTransactionScreen() {
           </View>
         </ScrollView>
 
-        {/* All Modals remain the same as before */}
+        {/* Native Date Picker */}
+        {showDatePicker &&
+          (Platform.OS === "ios" ? (
+            <Modal
+              visible={showDatePicker}
+              transparent={true}
+              animationType="fade"
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <TouchableOpacity
+                  style={styles.modalBackdrop}
+                  onPress={() => setShowDatePicker(false)}
+                  activeOpacity={1}
+                />
+                <View style={styles.datePickerModalContent}>
+                  <View style={styles.datePickerHeader}>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={styles.datePickerButton}
+                    >
+                      <Text style={styles.datePickerButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.datePickerTitle}>Select Date</Text>
+                    <TouchableOpacity
+                      onPress={handleIOSDateConfirm}
+                      style={[
+                        styles.datePickerButton,
+                        { backgroundColor: getTypeColor() },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.datePickerButtonText,
+                          { color: "#FFFFFF" },
+                        ]}
+                      >
+                        Done
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <DateTimePicker
+                    value={tempDate}
+                    mode="date"
+                    display="spinner"
+                    onChange={handleDateChange}
+                    maximumDate={new Date()}
+                    textColor={getTypeColor()}
+                  />
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={new Date(formData.date + "T00:00:00")}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+          ))}
+
+        {/* All existing modals remain the same */}
         {/* Transaction Type Modal */}
         <Modal
           visible={showTypeModal}
@@ -771,7 +911,6 @@ export default function AddTransactionScreen() {
                       ]}
                       onPress={() => {
                         updateFormData("toAccount", account.id)
-
                         setShowToAccountModal(false)
                       }}
                     >
@@ -867,41 +1006,6 @@ export default function AddTransactionScreen() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Date Modal */}
-        <Modal
-          visible={showDateModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowDateModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <TouchableOpacity
-              style={styles.modalBackdrop}
-              onPress={() => setShowDateModal(false)}
-              activeOpacity={1}
-            />
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Select Date</Text>
-              <TextInput
-                style={styles.dateInput}
-                value={formData.date}
-                onChangeText={(date) => updateFormData("date", date)}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numbers-and-punctuation"
-              />
-              <TouchableOpacity
-                style={[
-                  styles.confirmButton,
-                  { backgroundColor: getTypeColor() },
-                ]}
-                onPress={() => setShowDateModal(false)}
-              >
-                <Text style={styles.confirmButtonText}>Set Date</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>

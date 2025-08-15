@@ -7,7 +7,6 @@ import {
   Animated,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -367,7 +366,23 @@ export default function RecordsScreen() {
             <Text style={styles.loadingText}>Loading transactions...</Text>
           </View>
         ) : (
-          <ScrollView
+          <TransactionList
+            transactions={filteredTransactions}
+            accounts={accounts}
+            onTransactionUpdate={() => {
+              lastFetchParams.current = null
+              fetchTransactions()
+            }}
+            headerComponent={
+              <SummaryCard
+                transactionSummary={transactionSummary}
+                accounts={accounts}
+                selectedAccountId={filters.accountId}
+                onAccountChange={handleAccountChange}
+                filters={filters}
+                onPeriodChange={handlePeriodChange}
+              />
+            }
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -376,24 +391,7 @@ export default function RecordsScreen() {
                 tintColor="#1CC29F"
               />
             }
-          >
-            <SummaryCard
-              transactionSummary={transactionSummary}
-              accounts={accounts}
-              selectedAccountId={filters.accountId}
-              onAccountChange={handleAccountChange}
-              filters={filters}
-              onPeriodChange={handlePeriodChange}
-            />
-            <TransactionList
-              transactions={filteredTransactions}
-              accounts={accounts}
-              onTransactionUpdate={() => {
-                lastFetchParams.current = null
-                fetchTransactions()
-              }}
-            />
-          </ScrollView>
+          />
         )}
 
         <FilterModal

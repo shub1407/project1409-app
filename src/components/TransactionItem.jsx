@@ -10,6 +10,7 @@ const TransactionItem = ({
   getTransactionTypeColor,
   getTransactionIcon,
   getAccountName,
+  homePage,
 }) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString)
@@ -81,7 +82,6 @@ const TransactionItem = ({
             <Text style={styles.category} numberOfLines={1}>
               {transaction?.categoryId?.label || "Transfer"}
             </Text>
-            {/* <Text style={styles.date}>{formatDate(transaction.date)}</Text> */}
           </View>
 
           <Text style={styles.description} numberOfLines={1}>
@@ -97,24 +97,25 @@ const TransactionItem = ({
 
             {/* Balance Pills - Only show if values exist */}
             {(transaction.openingBalance !== undefined ||
-              transaction.closingBalance !== undefined) && (
-              <View style={styles.balancePills}>
-                {transaction.openingBalance !== undefined && (
-                  <View style={styles.balancePill}>
-                    <Text style={styles.balancePillText}>
-                      O: {formatCompactBalance(transaction.openingBalance)}
-                    </Text>
-                  </View>
-                )}
-                {transaction.closingBalance !== undefined && (
-                  <View style={styles.balancePill}>
-                    <Text style={styles.balancePillText}>
-                      C: {formatCompactBalance(transaction.closingBalance)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            )}
+              transaction.closingBalance !== undefined) &&
+              !homePage && (
+                <View style={styles.balancePills}>
+                  {transaction.openingBalance !== undefined && (
+                    <View style={styles.balancePill}>
+                      <Text style={styles.balancePillText}>
+                        O: {formatCompactBalance(transaction.openingBalance)}
+                      </Text>
+                    </View>
+                  )}
+                  {transaction.closingBalance !== undefined && (
+                    <View style={styles.balancePill}>
+                      <Text style={styles.balancePillText}>
+                        C: {formatCompactBalance(transaction.closingBalance)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
           </View>
 
           {transaction.note && (
@@ -131,12 +132,9 @@ const TransactionItem = ({
           {formatCurrency(transaction.amount)}
         </Text>
 
-        {/* <View style={styles.timeContainer}>
-          <Ionicons name="time-outline" size={10} color="#9CA3AF" />
-          <Text style={styles.time}>
-            {new Date(transaction.date).toLocaleTimeString("en-US")}
-          </Text>
-        </View> */}
+        <View style={styles.timeContainer}>
+          <Text style={styles.date}>{formatDate(transaction.date)}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   )

@@ -16,8 +16,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { useAccountsContext } from "../../src/context/AccountContext" // adjust path if needed
-import { accountService } from "../../src/services/accountService" // adjust path if needed
+import { DeleteConfirmationModal } from "../../src/components/DeleteModal" // Import the component
+import { useAccountsContext } from "../../src/context/AccountContext"
+import { accountService } from "../../src/services/accountService"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
@@ -241,7 +242,7 @@ function TypeModal({ visible, selectedType, onSelect, onClose }) {
    ------------------------- */
 export default function EditAccountScreen() {
   const { accountId } = useLocalSearchParams()
-  const { accounts, refreshAccounts } = useAccountsContext()
+  const { accounts, refreshAccounts, deleteAccount } = useAccountsContext()
 
   // Form state
   const [name, setName] = useState("")
@@ -252,9 +253,11 @@ export default function EditAccountScreen() {
 
   // UI state
   const [loading, setLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
   const [showColorDropdown, setShowColorDropdown] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   // Original account data for comparison
   const [originalAccount, setOriginalAccount] = useState(null)
@@ -275,11 +278,8 @@ export default function EditAccountScreen() {
         setBalance(account.initialBalance?.toString() || "0")
         setColor(account.color || "#1CC29F")
         setIcon(account.icon || "wallet-outline")
-      } else {
-        Alert.alert("Error", "Account not found", [
-          { text: "OK", onPress: () => router.back() },
-        ])
       }
+
       setInitialLoading(false)
     }
 
@@ -346,6 +346,34 @@ export default function EditAccountScreen() {
       setLoading(false)
     }
   }, [name, type, balance, color, icon, accountId])
+
+  const handleDelete = useCallback(async () => {
+    if (!originalAccount) return
+
+    setDeleteLoading(true)
+    try {
+      const result = await deleteAccount(accountId)
+      if (result?.success) {
+        Alert.alert("Success", "Account deleted successfully!", [
+          {
+            text: "OK",
+            onPress: () => {
+              router.back()
+            },
+          },
+        ])
+      } else {
+        Alert.alert("Error", result?.error || "Failed to delete account")
+      }
+    } catch (err) {
+      console.error(err)
+      Alert.alert("Error", "Failed to delete account. Please try again.")
+    } finally {
+      await refreshAccounts()
+      setDeleteLoading(false)
+      setShowDeleteModal(false)
+    }
+  }, [accountId, originalAccount, deleteAccount])
 
   const handleCancel = useCallback(() => {
     if (hasChanges) {
@@ -426,29 +454,43 @@ export default function EditAccountScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
       <SafeAreaView style={styles.container}>
+        {/* Modified Header with Delete Button */}
         <View style={styles.header}>
           <TouchableOpacity
             onPress={handleCancel}
             style={styles.headerButton}
-            disabled={loading}
+            disabled={loading || deleteLoading}
           >
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
+
           <Text style={styles.headerTitle}>Edit Account</Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={[
-              styles.headerButton,
-              (!hasChanges || loading) && styles.headerButtonDisabled,
-            ]}
-            disabled={!hasChanges || loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons name="checkmark" size={24} color="#FFFFFF" />
-            )}
-          </TouchableOpacity>
+
+          <View style={styles.headerRightButtons}>
+            <TouchableOpacity
+              onPress={() => setShowDeleteModal(true)}
+              style={[styles.headerButton, styles.deleteHeaderButton]}
+              disabled={loading || deleteLoading}
+            >
+              <Ionicons name="trash" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleSave}
+              style={[
+                styles.headerButton,
+                (!hasChanges || loading || deleteLoading) &&
+                  styles.headerButtonDisabled,
+              ]}
+              disabled={!hasChanges || loading || deleteLoading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -574,6 +616,20 @@ export default function EditAccountScreen() {
           onSelect={onSelectColor}
           onClose={() => setShowColorDropdown(false)}
         />
+
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          visible={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={handleDelete}
+          title="Delete Account"
+          message={`Are you sure you want to delete "${
+            originalAccount?.name || "this account"
+          }"?`}
+          warningMessage="All transactions associated with this account will be permanently deleted. This action cannot be undone."
+          confirmText="Delete Account"
+          loading={deleteLoading}
+        />
       </SafeAreaView>
     </>
   )
@@ -597,6 +653,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  headerRightButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
   headerButton: {
     width: 40,
     height: 40,
@@ -604,6 +664,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  deleteHeaderButton: {
+    backgroundColor: "rgba(239, 68, 68, 0.3)",
   },
   headerButtonDisabled: {
     opacity: 0.5,

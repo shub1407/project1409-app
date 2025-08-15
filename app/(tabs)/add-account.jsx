@@ -243,7 +243,7 @@ export default function AddAccountScreen() {
   // split state
   const [name, setName] = useState("")
   const [type, setType] = useState("savings")
-  const [balance, setBalance] = useState("")
+  const [balance, setBalance] = useState("0")
   const [color, setColor] = useState("#1CC29F")
   const [icon, setIcon] = useState("wallet-outline")
 
@@ -270,8 +270,8 @@ export default function AddAccountScreen() {
 
   const resetForm = () => {
     setName("")
-    setType("")
-    setBalance("")
+    setType("savings")
+    setBalance("0")
   }
 
   /* handlers */
@@ -280,6 +280,7 @@ export default function AddAccountScreen() {
       Alert.alert("Error", "Please enter account name")
       return
     }
+    console.log("balance is: ", balance)
     if (!balance || isNaN(parseFloat(balance))) {
       Alert.alert("Error", "Please enter a valid balance")
       return
@@ -300,9 +301,8 @@ export default function AddAccountScreen() {
           {
             text: "OK",
             onPress: () => {
-              setName("")
-              setBalance(0)
-              router.back()
+              resetForm()
+              router.replace("/")
             },
           },
         ])
@@ -314,7 +314,7 @@ export default function AddAccountScreen() {
       console.error(err)
       Alert.alert("Error", "Failed to create account. Please try again.")
     } finally {
-      refreshAccounts() // refresh accounts context
+      await refreshAccounts() // refresh accounts context
       setLoading(false)
     }
   }, [name, type, balance, color, icon])

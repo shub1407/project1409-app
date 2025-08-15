@@ -57,9 +57,6 @@ export const AccountsProvider = ({ children }) => {
 
       if (result.success) {
         // Remove from local state
-        setAccounts((prev) =>
-          prev.filter((account) => account.id !== accountId)
-        )
         return { success: true }
       } else {
         throw new Error(result.error || "Failed to delete account")

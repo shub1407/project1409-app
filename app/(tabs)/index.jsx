@@ -1,5 +1,5 @@
 import { router } from "expo-router"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   Dimensions, // Import from react-native
   RefreshControl,
@@ -9,12 +9,12 @@ import {
   StyleSheet,
 } from "react-native"
 // Remove this line: import { ScrollView } from "react-native-web"
+import { useFocusEffect } from "expo-router"
 import ListOfAccounts from "../../src/components/ListOfAccounts"
 import TransactionCard from "../../src/components/TransactionCard"
 import { useAccountsContext } from "../../src/context/AccountContext"
 import { useAuth } from "../../src/context/AuthContext"
 import transactionService from "../../src/services/transactionService"
-
 const { width: screenWidth } = Dimensions.get("window")
 
 export default function AccountsScreen() {
@@ -28,12 +28,23 @@ export default function AccountsScreen() {
   useEffect(() => {
     loadTransactions()
   }, [])
+  useFocusEffect(
+    useCallback(() => {
+      console.log("Screen is focused")
+      loadTransactions()
+
+      return () => {
+        console.log("Screen is unfocused")
+      }
+    }, [])
+  )
 
   const loadTransactions = async () => {
     try {
       setTransactionsLoading(true)
-      const result = await transactionService.getTransactions()
+      const result = await transactionService.getTransactions({ limit: 2 })
       if (result) {
+        console.log("Loaded transaction:: ", result.transactions.length)
         setTransactions(result.transactions)
       }
     } catch (error) {

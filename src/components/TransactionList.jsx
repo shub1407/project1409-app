@@ -8,6 +8,7 @@ const TransactionList = ({
   refreshControl,
   onTransactionUpdate,
   transactionSummary,
+  headerComponent,
 }) => {
   const formatCurrency = (amount) => {
     return `₹${Math.abs(amount).toLocaleString("en-IN", {
@@ -240,9 +241,18 @@ const TransactionList = ({
       showsVerticalScrollIndicator={false}
       refreshControl={refreshControl}
       ListEmptyComponent={renderEmptyComponent}
-      ListHeaderComponent={renderHeader}
       ItemSeparatorComponent={ItemSeparator}
       stickySectionHeadersEnabled={false}
+      ListHeaderComponent={
+        <View>
+          {typeof headerComponent === "string" ? (
+            <Text>{headerComponent}</Text>
+          ) : (
+            headerComponent
+          )}
+          {renderHeader()}
+        </View>
+      }
     />
   )
 }

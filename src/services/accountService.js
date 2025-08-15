@@ -8,8 +8,8 @@ export const accountService = {
   createAccount: async (accountData) => {
     try {
       const headers = await getAuthHeaders()
-
-      if (!accountData.name || !accountData.type || !accountData.balance) {
+      console.log("account balance:: ", accountData.balance)
+      if (!accountData.name || !accountData.type) {
         return {
           success: false,
           error: "Name, type, and balance are required fields.",

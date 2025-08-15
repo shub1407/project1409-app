@@ -4,7 +4,6 @@ import { useState } from "react"
 import {
   Dimensions,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -39,32 +38,14 @@ const SummaryCard = ({
     return account?.name || "All Accounts"
   }
 
-  // In SummaryCard.js, update the getPeriodDisplayText function:
   const getPeriodDisplayText = () => {
     switch (filters.dateRange) {
       case "today":
-        return `Today • ${new Date().toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-        })}`
+        return "Today"
       case "week":
-        const weekStart = new Date()
-        weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
-        return `This Week • ${weekStart.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-        })} - ${weekEnd.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "short",
-        })}`
+        return "This Week"
       case "month":
-        const monthName = new Date().toLocaleDateString("en-GB", {
-          month: "long",
-          year: "numeric",
-        })
-        return `${monthName}`
+        return "This Month"
       case "custom":
         if (filters.startDate && filters.endDate) {
           const start = new Date(filters.startDate).toLocaleDateString(
@@ -72,17 +53,15 @@ const SummaryCard = ({
             {
               day: "2-digit",
               month: "short",
-              year: "numeric",
             }
           )
           const end = new Date(filters.endDate).toLocaleDateString("en-GB", {
             day: "2-digit",
             month: "short",
-            year: "numeric",
           })
           return `${start} - ${end}`
         }
-        return "Custom Period"
+        return "Custom"
       default:
         return "This Month"
     }
@@ -96,7 +75,6 @@ const SummaryCard = ({
   ]
 
   const handleViewDetailAnalysis = () => {
-    // Navigate to analysis page with current filters
     router.push({
       pathname: "/(tabs)/reports",
       params: {
@@ -115,37 +93,39 @@ const SummaryCard = ({
       animationType="fade"
       onRequestClose={() => setShowAccountModal(false)}
     >
-      <Pressable
-        style={styles.modalOverlay}
-        onPress={() => setShowAccountModal(false)}
-      >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          onPress={() => setShowAccountModal(false)}
+          activeOpacity={1}
+        />
         <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Account</Text>
-            <TouchableOpacity onPress={() => setShowAccountModal(false)}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.modalTitle}>Select Account</Text>
 
-          <ScrollView style={styles.optionsList}>
+          <ScrollView showsVerticalScrollIndicator={false}>
             <TouchableOpacity
               style={[
-                styles.optionItem,
-                !selectedAccountId && styles.selectedOption,
+                styles.modalOption,
+                !selectedAccountId && styles.modalOptionActive,
               ]}
               onPress={() => {
                 onAccountChange("")
                 setShowAccountModal(false)
               }}
             >
-              <Text
-                style={[
-                  styles.optionText,
-                  !selectedAccountId && styles.selectedOptionText,
-                ]}
-              >
-                All Accounts
-              </Text>
+              <View style={styles.modalOptionContent}>
+                <View style={styles.modalOptionIcon}>
+                  <Ionicons name="wallet" size={20} color="#6B7280" />
+                </View>
+                <Text
+                  style={[
+                    styles.modalOptionText,
+                    !selectedAccountId && styles.modalOptionTextActive,
+                  ]}
+                >
+                  All Accounts
+                </Text>
+              </View>
               {!selectedAccountId && (
                 <Ionicons name="checkmark" size={20} color="#1CC29F" />
               )}
@@ -155,26 +135,32 @@ const SummaryCard = ({
               <TouchableOpacity
                 key={account.id}
                 style={[
-                  styles.optionItem,
-                  selectedAccountId === account.id && styles.selectedOption,
+                  styles.modalOption,
+                  selectedAccountId === account.id && styles.modalOptionActive,
                 ]}
                 onPress={() => {
                   onAccountChange(account.id)
                   setShowAccountModal(false)
                 }}
               >
-                <View style={styles.accountOption}>
+                <View style={styles.modalOptionContent}>
                   <View
                     style={[
-                      styles.accountIcon,
+                      styles.modalAccountIcon,
                       { backgroundColor: account.color || "#6B7280" },
                     ]}
-                  />
+                  >
+                    <Ionicons
+                      name={account.icon || "wallet"}
+                      size={16}
+                      color="#FFFFFF"
+                    />
+                  </View>
                   <Text
                     style={[
-                      styles.optionText,
+                      styles.modalOptionText,
                       selectedAccountId === account.id &&
-                        styles.selectedOptionText,
+                        styles.modalOptionTextActive,
                     ]}
                   >
                     {account.name}
@@ -187,7 +173,7 @@ const SummaryCard = ({
             ))}
           </ScrollView>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   )
 
@@ -198,40 +184,47 @@ const SummaryCard = ({
       animationType="fade"
       onRequestClose={() => setShowPeriodModal(false)}
     >
-      <Pressable
-        style={styles.modalOverlay}
-        onPress={() => setShowPeriodModal(false)}
-      >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          onPress={() => setShowPeriodModal(false)}
+          activeOpacity={1}
+        />
         <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Period</Text>
-            <TouchableOpacity onPress={() => setShowPeriodModal(false)}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.modalTitle}>Select Period</Text>
 
-          <ScrollView style={styles.optionsList}>
+          <ScrollView showsVerticalScrollIndicator={false}>
             {periodOptions.map((option) => (
               <TouchableOpacity
                 key={option.value}
                 style={[
-                  styles.optionItem,
-                  filters.dateRange === option.value && styles.selectedOption,
+                  styles.modalOption,
+                  filters.dateRange === option.value &&
+                    styles.modalOptionActive,
                 ]}
                 onPress={() => {
                   onPeriodChange(option.value)
                   setShowPeriodModal(false)
                 }}
               >
-                <Text
-                  style={[
-                    styles.optionText,
-                    filters.dateRange === option.value &&
-                      styles.selectedOptionText,
-                  ]}
-                >
-                  {option.label}
-                </Text>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.modalOptionIcon}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color="#6B7280"
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      filters.dateRange === option.value &&
+                        styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </View>
                 {filters.dateRange === option.value && (
                   <Ionicons name="checkmark" size={20} color="#1CC29F" />
                 )}
@@ -239,44 +232,35 @@ const SummaryCard = ({
             ))}
           </ScrollView>
         </View>
-      </Pressable>
+      </View>
     </Modal>
   )
 
   return (
     <View style={styles.container}>
-      {/* Dropdowns Row */}
-      <View style={styles.dropdownRow}>
+      {/* Compact Filter Row */}
+      <View style={styles.filterRow}>
         <TouchableOpacity
-          style={styles.dropdown}
+          style={styles.filterChip}
           onPress={() => setShowAccountModal(true)}
         >
-          <View style={styles.dropdownContent}>
-            <Ionicons name="wallet-outline" size={16} color="#6B7280" />
-            <Text style={styles.dropdownText} numberOfLines={1}>
-              {getSelectedAccountName()}
-            </Text>
-          </View>
-          <Ionicons name="chevron-down" size={16} color="#6B7280" />
+          <Ionicons name="wallet" size={14} color="#1CC29F" />
+          <Text style={styles.filterText} numberOfLines={1}>
+            {getSelectedAccountName()}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color="#9CA3AF" />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.dropdown}
+          style={styles.filterChip}
           onPress={() => setShowPeriodModal(true)}
         >
-          <View style={styles.dropdownContent}>
-            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
-            <Text style={styles.dropdownText} numberOfLines={1}>
-              {getPeriodDisplayText()}
-            </Text>
-          </View>
-          <Ionicons name="chevron-down" size={16} color="#6B7280" />
+          <Ionicons name="calendar" size={14} color="#1CC29F" />
+          <Text style={styles.filterText} numberOfLines={1}>
+            {getPeriodDisplayText()}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color="#9CA3AF" />
         </TouchableOpacity>
-      </View>
-      <View>
-        <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 16 }}>
-          {getSelectedAccountName() + " " + getPeriodDisplayText()}
-        </Text>
       </View>
 
       {/* Summary Cards */}
@@ -284,7 +268,7 @@ const SummaryCard = ({
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <View style={[styles.iconContainer, styles.incomeIcon]}>
-              <Ionicons name="arrow-down" size={16} color="#10B981" />
+              <Ionicons name="trending-up" size={14} color="#10B981" />
             </View>
             <Text style={styles.summaryLabel}>Income</Text>
           </View>
@@ -296,7 +280,7 @@ const SummaryCard = ({
         <View style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <View style={[styles.iconContainer, styles.expenseIcon]}>
-              <Ionicons name="arrow-up" size={16} color="#EF4444" />
+              <Ionicons name="trending-down" size={14} color="#EF4444" />
             </View>
             <Text style={styles.summaryLabel}>Expense</Text>
           </View>
@@ -326,8 +310,8 @@ const SummaryCard = ({
         style={styles.analysisButton}
         onPress={handleViewDetailAnalysis}
       >
-        <Text style={styles.analysisButtonText}>View Detail Analysis</Text>
-        <Ionicons name="analytics-outline" size={18} color="#FFFFFF" />
+        <Ionicons name="analytics" size={16} color="#FFFFFF" />
+        <Text style={styles.analysisButtonText}>View Analysis</Text>
       </TouchableOpacity>
 
       <AccountModal />
@@ -339,72 +323,70 @@ const SummaryCard = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#FFFFFF",
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
-  dropdownRow: {
+
+  // Compact Filter Design
+  filterRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 12,
+    gap: 8,
+    marginBottom: 16,
   },
-  dropdown: {
+  filterChip: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 20,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  dropdownContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  dropdownText: {
-    fontSize: 14,
+  filterText: {
+    fontSize: 13,
     color: "#374151",
-    fontWeight: "500",
-    marginLeft: 8,
+    fontWeight: "600",
+    marginLeft: 6,
+    marginRight: 4,
     flex: 1,
   },
+
+  // Summary Cards
   summaryRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    gap: 12,
+    gap: 10,
+    marginBottom: 12,
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8F9FA",
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
   },
   summaryHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 6,
   },
   iconContainer: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
+    marginRight: 6,
   },
   incomeIcon: {
     backgroundColor: "#D1FAE5",
@@ -413,12 +395,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEE2E2",
   },
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#6B7280",
     fontWeight: "500",
   },
   summaryAmount: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
   },
   incomeAmount: {
@@ -427,21 +409,23 @@ const styles = StyleSheet.create({
   expenseAmount: {
     color: "#EF4444",
   },
+
+  // Balance Container
   balanceContainer: {
     backgroundColor: "#F3F4F6",
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   balanceLabel: {
-    fontSize: 14,
+    fontSize: 12,
     color: "#6B7280",
     fontWeight: "500",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   balanceAmount: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "800",
   },
   positiveBalance: {
@@ -450,81 +434,98 @@ const styles = StyleSheet.create({
   negativeBalance: {
     color: "#EF4444",
   },
+
+  // Analysis Button
   analysisButton: {
     backgroundColor: "#1CC29F",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
+    paddingVertical: 12,
+    gap: 6,
   },
   analysisButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#FFFFFF",
     fontWeight: "600",
   },
+
+  // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  modalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    width: screenWidth - 40,
+    padding: 20,
+    width: screenWidth - 48,
     maxHeight: "70%",
-    overflow: "hidden",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 16,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#111827",
+    marginBottom: 16,
+    textAlign: "center",
   },
-  optionsList: {
-    maxHeight: 400,
-  },
-  optionItem: {
+  modalOption: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 4,
   },
-  selectedOption: {
+  modalOptionActive: {
     backgroundColor: "#F0FDF4",
   },
-  optionText: {
-    fontSize: 16,
-    color: "#374151",
-    fontWeight: "500",
-  },
-  selectedOptionText: {
-    color: "#1CC29F",
-    fontWeight: "600",
-  },
-  accountOption: {
+  modalOptionContent: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
   },
-  accountIcon: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+  modalOptionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
+  },
+  modalAccountIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  modalOptionTextActive: {
+    color: "#1CC29F",
+    fontWeight: "700", // Bold for selected items
   },
 })
 

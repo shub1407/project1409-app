@@ -23,7 +23,8 @@ import { useAccountsContext } from "../../src/context/AccountContext"
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 export default function AccountSettingsScreen() {
-  const { accounts, updateAccountOrder, deleteAccount } = useAccountsContext()
+  const { accounts, updateAccountOrder, deleteAccount, refreshAccounts } =
+    useAccountsContext()
   const [accountList, setAccountList] = useState([])
   const swipeableRefs = useState(new Map())[0]
   const [fadeAnim] = useState(new Animated.Value(0))
@@ -102,9 +103,7 @@ export default function AccountSettingsScreen() {
           onPress: async () => {
             try {
               await deleteAccount(accountId)
-              setAccountList((prev) =>
-                prev.filter((acc) => acc.id !== accountId)
-              )
+              await refreshAccounts()
               swipeableRefs.delete(accountId)
             } catch (error) {
               console.error("Delete error:", error)

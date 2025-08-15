@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-
+import TransactionItem from "./TransactionItem"
 const TransactionCard = ({ transactions, loading, onViewAll }) => {
   // Get last 5 transactions sorted by date (newest first)
   const recentTransactions = useMemo(() => {
@@ -65,15 +65,19 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
     return categoryIcons[category?.toLowerCase()] || "trending-down"
   }
 
-  const getTransactionColor = (type) => {
-    switch (type) {
-      case "income":
-        return "#1CC29F"
-      case "transfer":
-        return "#45B7D1"
-      default:
-        return "#FF6B6B"
+  const getTransactionTypeColor = (type) => {
+    const colors = {
+      income: "#1CC29F",
+      expense: "#ff1e1eff",
+      transfer: "#45B7D1",
     }
+    return colors[type] || "#6B7280"
+  }
+  const formatCurrency = (amount) => {
+    return `₹${Math.abs(amount).toLocaleString("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
   }
 
   const handleTransactionPress = (transaction) => {
@@ -99,7 +103,7 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
       <View style={styles.header}>
         <Text style={styles.title}>Recent Transactions</Text>
         <Text style={styles.subtitle}>
-          {transactions?.length || 0} transactions
+          Last {transactions?.length || 0} transactions
         </Text>
       </View>
 
@@ -124,77 +128,14 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
         <>
           <View style={styles.transactionsList}>
             {recentTransactions.map((transaction, index) => (
-              <TouchableOpacity
-                key={transaction._id || index}
-                style={[
-                  styles.transactionItem,
-                  index === recentTransactions.length - 1 && styles.lastItem,
-                ]}
-                onPress={() => handleTransactionPress(transaction)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.transactionLeft}>
-                  <View
-                    style={[
-                      styles.transactionIcon,
-                      {
-                        backgroundColor: `${getTransactionColor(
-                          transaction.type
-                        )}20`,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={getTransactionIcon(
-                        transaction.type,
-                        transaction.categoryId?.label
-                      )}
-                      size={20}
-                      color={getTransactionColor(transaction.type)}
-                    />
-                  </View>
-                  <View style={styles.transactionDetails}>
-                    <Text
-                      style={styles.transactionDescription}
-                      numberOfLines={1}
-                    >
-                      {transaction.description || "No description"}
-                    </Text>
-                    <View style={styles.transactionMeta}>
-                      <Text style={styles.transactionAccount}>
-                        {transaction.accountId?.name || transaction.accountId}
-                      </Text>
-                      {transaction.type === "transfer" &&
-                        transaction.toAccount && (
-                          <>
-                            <Ionicons
-                              name="arrow-forward"
-                              size={12}
-                              color="#9CA3AF"
-                              style={styles.arrowIcon}
-                            />
-                            <Text style={styles.transactionAccount}>
-                              {transaction.toAccountId.name}
-                            </Text>
-                          </>
-                        )}
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.transactionRight}>
-                  <Text
-                    style={[
-                      styles.transactionAmount,
-                      { color: getTransactionColor(transaction.type) },
-                    ]}
-                  >
-                    {formatAmount(transaction.amount, transaction.type)}
-                  </Text>
-                  <Text style={styles.transactionDate}>
-                    {formatDate(transaction.date || transaction.createdAt)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
+              <View key={transaction._id} style={styles.transactionItem}>
+                <TransactionItem
+                  transaction={transaction}
+                  getTransactionTypeColor={getTransactionTypeColor}
+                  formatCurrency={formatCurrency}
+                  homePage={true}
+                />
+              </View>
             ))}
           </View>
 
@@ -298,9 +239,9 @@ const styles = StyleSheet.create({
   transactionItem: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
+    paddingVertical: 1,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: "#e2ebdfd7",
   },
   lastItem: {
     borderBottomWidth: 0,
