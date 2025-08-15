@@ -160,6 +160,7 @@ export default function AddTransactionScreen() {
         date: formData.date,
         note: formData.note.trim(),
       }
+      console.log("Transfer data: ", transactionData)
 
       // Call API to save transaction
       await transactionService.createTransaction(transactionData)

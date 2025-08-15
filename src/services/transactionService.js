@@ -171,10 +171,17 @@ class TransactionService {
         `${this.baseURL}/${transactionId}`,
         updateData
       )
-      return response.data
+      return {
+        data: response.data,
+        success: true,
+      }
     } catch (error) {
       console.error("Error updating transaction:", error)
+
       this.handleAxiosError(error)
+      return {
+        success: false,
+      }
     }
   }
 
@@ -186,7 +193,10 @@ class TransactionService {
       }
 
       const response = await axios.delete(`${this.baseURL}/${transactionId}`)
-      return response.data
+      return {
+        data: response.data,
+        success: true,
+      }
     } catch (error) {
       console.error("Error deleting transaction:", error)
       this.handleAxiosError(error)
@@ -201,7 +211,10 @@ class TransactionService {
       }
 
       const response = await axios.get(`${this.baseURL}/${transactionId}`)
-      return response.data
+      return {
+        success: true,
+        data: response.data,
+      }
     } catch (error) {
       console.error("Error fetching transaction:", error)
       this.handleAxiosError(error)

@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons"
+import { router } from "expo-router"
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native"
 
 const TransactionItem = ({
@@ -40,20 +41,29 @@ const TransactionItem = ({
     ? transaction.categoryId.color
     : getTransactionTypeColor(transaction.type)
   const amountColor = getTransactionTypeColor(transaction.type)
-  const typeIcon = getTransactionIcon(transaction.type)
+
+  // Format balance for compact display
+  const formatCompactBalance = (amount) => {
+    if (amount === undefined || amount === null) return null
+
+    return `₹${amount}`
+  }
 
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={() => {
-        // Handle transaction tap (edit/view details)
         console.log("Transaction tapped:", transaction)
+        router.push({
+          pathname: "/(tabs)/edit-record",
+          params: { transactionId: transaction._id },
+        })
       }}
       activeOpacity={0.7}
     >
       <View style={styles.leftSection}>
         <View
-          style={[styles.iconContainer, { backgroundColor: `${typeColor}20` }]}
+          style={[styles.iconContainer, { backgroundColor: `${typeColor}15` }]}
         >
           <Ionicons
             name={
@@ -61,25 +71,51 @@ const TransactionItem = ({
                 ? transaction.categoryId.icon
                 : "swap-horizontal"
             }
-            size={20}
+            size={18}
             color={typeColor}
           />
         </View>
 
         <View style={styles.details}>
-          <Text style={styles.category} numberOfLines={1}>
-            {transaction?.categoryId?.label || "Transfer"}
-          </Text>
+          <View style={styles.topRow}>
+            <Text style={styles.category} numberOfLines={1}>
+              {transaction?.categoryId?.label || "Transfer"}
+            </Text>
+            {/* <Text style={styles.date}>{formatDate(transaction.date)}</Text> */}
+          </View>
 
           <Text style={styles.description} numberOfLines={1}>
-            "{transaction.description || "No description"}"
+            {transaction.description || "No description"}
           </Text>
 
-          <Text style={styles.accountInfo} numberOfLines={1}>
-            {transaction.type === "transfer"
-              ? getTransferDisplay()
-              : transaction.accountId.name}
-          </Text>
+          <View style={styles.bottomRow}>
+            <Text style={styles.accountInfo} numberOfLines={1}>
+              {transaction.type === "transfer"
+                ? getTransferDisplay()
+                : transaction.accountId.name}
+            </Text>
+
+            {/* Balance Pills - Only show if values exist */}
+            {(transaction.openingBalance !== undefined ||
+              transaction.closingBalance !== undefined) && (
+              <View style={styles.balancePills}>
+                {transaction.openingBalance !== undefined && (
+                  <View style={styles.balancePill}>
+                    <Text style={styles.balancePillText}>
+                      O: {formatCompactBalance(transaction.openingBalance)}
+                    </Text>
+                  </View>
+                )}
+                {transaction.closingBalance !== undefined && (
+                  <View style={styles.balancePill}>
+                    <Text style={styles.balancePillText}>
+                      C: {formatCompactBalance(transaction.closingBalance)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
 
           {transaction.note && (
             <Text style={styles.note} numberOfLines={1}>
@@ -95,15 +131,12 @@ const TransactionItem = ({
           {formatCurrency(transaction.amount)}
         </Text>
 
-        <Text style={styles.date}>{formatDate(transaction.date)}</Text>
-
-        {/* <Text style={styles.time}>
-          {new Date(transaction.date).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          })}
-        </Text> */}
+        {/* <View style={styles.timeContainer}>
+          <Ionicons name="time-outline" size={10} color="#9CA3AF" />
+          <Text style={styles.time}>
+            {new Date(transaction.date).toLocaleTimeString("en-US")}
+          </Text>
+        </View> */}
       </View>
     </TouchableOpacity>
   )
@@ -112,67 +145,106 @@ const TransactionItem = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#F3F4F6",
   },
   leftSection: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
-    marginRight: 16,
+    marginRight: 12,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
+    marginRight: 12,
   },
   details: {
     flex: 1,
   },
+  topRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 2,
+  },
   category: {
-    fontSize: 17,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "600",
     color: "#111827",
-    marginBottom: 4,
+    flex: 1,
+    marginRight: 8,
+  },
+  date: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "#6B7280",
   },
   description: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#111827",
+    fontWeight: "400",
+    color: "#6B7280",
     marginBottom: 4,
   },
-  accountInfo: {
-    fontSize: 14,
-    color: "#6B7280",
+  bottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 2,
   },
-  note: {
+  accountInfo: {
     fontSize: 12,
     color: "#9CA3AF",
+    flex: 1,
+    marginRight: 8,
+  },
+  balancePills: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  balancePill: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: "#E5E7EB",
+  },
+  balancePillText: {
+    fontSize: 9,
+    fontWeight: "500",
+    color: "#6B7280",
+  },
+  note: {
+    fontSize: 11,
+    color: "#9CA3AF",
     fontStyle: "italic",
+    marginTop: 2,
   },
   rightSection: {
     alignItems: "flex-end",
     justifyContent: "center",
   },
   amount: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "700",
     marginBottom: 4,
   },
-  date: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginBottom: 2,
+  timeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
   },
   time: {
-    fontSize: 11,
+    fontSize: 10,
+    fontWeight: "400",
     color: "#9CA3AF",
   },
 })

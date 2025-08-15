@@ -77,7 +77,7 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
   }
 
   const handleTransactionPress = (transaction) => {
-    router.push(`/transactions/edit?id=${transaction._id}`)
+    router.push(`/edit-record?transactionId=${transaction._id}`)
   }
 
   if (loading) {
