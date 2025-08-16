@@ -3,6 +3,7 @@ import { router } from "expo-router"
 import { useState } from "react"
 import {
   Alert,
+  Dimensions,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -15,6 +16,8 @@ import {
 } from "react-native"
 import { useCategoryContext } from "../../../src/context/CategoryContext"
 
+const { width: screenWidth } = Dimensions.get("window")
+
 export default function CategoriesScreen() {
   const {
     expenseCategories,
@@ -22,6 +25,7 @@ export default function CategoriesScreen() {
     addCategory,
     updateCategory,
     deleteCategory,
+    fetchCategories,
   } = useCategoryContext()
   const [activeTab, setActiveTab] = useState("expense")
   const [showAddModal, setShowAddModal] = useState(false)
@@ -43,6 +47,10 @@ export default function CategoriesScreen() {
     "airplane-outline",
     "business-outline",
     "wallet-outline",
+    "restaurant-outline",
+    "bus-outline",
+    "bed-outline",
+    "phone-portrait-outline",
   ]
 
   const colors = [
@@ -63,29 +71,69 @@ export default function CategoriesScreen() {
   const currentCategories =
     activeTab === "expense" ? expenseCategories : incomeCategories
 
+  // Calculate card width to fit screen properly (3 cards per row)
+  const getCardWidth = () => {
+    const screenPadding = 40 // 20px on each side
+    const cardGap = 24 // total gap space for 2 gaps in 3-card row
+    const cardsPerRow = 3
+    return Math.floor((screenWidth - screenPadding - cardGap) / cardsPerRow)
+  }
+
+  // Check if category can be modified (not default and no transactions)
+  const canModifyCategory = (category) => {
+    return (
+      !category.isDefault &&
+      (category.transactionCount === 0 || !category.transactionCount)
+    )
+  }
+
+  const resetModal = () => {
+    setShowAddModal(false)
+    setEditingCategory(null)
+    setNewCategoryName("")
+    setSelectedIcon("apps-outline")
+    setSelectedColor("#1CC29F")
+  }
+
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) {
       Alert.alert("Error", "Please enter a category name")
       return
     }
-
     try {
-      await addCategory({
+      const categoryData = {
         label: newCategoryName.trim(),
         icon: selectedIcon,
         color: selectedColor,
         type: activeTab,
-      })
-      setShowAddModal(false)
-      setNewCategoryName("")
-      setSelectedIcon("apps-outline")
-      setSelectedColor("#1CC29F")
+      }
+      await addCategory(categoryData)
+      resetModal()
+      Alert.alert("Success", "Category added successfully")
     } catch (error) {
       Alert.alert("Error", "Failed to add category")
     }
   }
 
   const handleEditCategory = (category) => {
+    // Check if category can be edited
+    if (!canModifyCategory(category)) {
+      if (category.isDefault) {
+        Alert.alert(
+          "Cannot Edit",
+          "Default categories cannot be modified. They are required for the app to function properly."
+        )
+      } else {
+        Alert.alert(
+          "Cannot Edit",
+          `This category has ${category.transactionCount || 0} transaction${
+            (category.transactionCount || 0) !== 1 ? "s" : ""
+          } and cannot be modified. Delete the transactions first to edit this category.`
+        )
+      }
+      return
+    }
+
     setEditingCategory(category)
     setNewCategoryName(category.label)
     setSelectedIcon(category.icon)
@@ -99,23 +147,57 @@ export default function CategoriesScreen() {
       return
     }
 
+    // Double-check before updating
+    if (!canModifyCategory(editingCategory)) {
+      Alert.alert("Error", "This category cannot be modified")
+      return
+    }
+
     try {
       await updateCategory(editingCategory._id, {
         label: newCategoryName.trim(),
         icon: selectedIcon,
         color: selectedColor,
       })
-      setShowAddModal(false)
-      setEditingCategory(null)
-      setNewCategoryName("")
-      setSelectedIcon("apps-outline")
-      setSelectedColor("#1CC29F")
+      resetModal()
+      Alert.alert("Success", "Category updated successfully")
     } catch (error) {
       Alert.alert("Error", "Failed to update category")
     }
   }
 
   const handleDeleteCategory = (category) => {
+    // Check if category can be deleted
+    if (!canModifyCategory(category)) {
+      if (category.isDefault) {
+        Alert.alert(
+          "Cannot Delete",
+          "Default categories cannot be deleted. They are required for the app to function properly."
+        )
+      } else {
+        Alert.alert(
+          "Cannot Delete",
+          `This category has ${category.transactionCount || 0} transaction${
+            (category.transactionCount || 0) !== 1 ? "s" : ""
+          } and cannot be deleted. Please move or delete the transactions first.`,
+          [
+            { text: "OK", style: "default" },
+            {
+              text: "View Transactions",
+              onPress: () => {
+                // Navigate to transactions filtered by this category
+                router.push({
+                  pathname: "/(tabs)/records",
+                  params: { categoryId: category._id },
+                })
+              },
+            },
+          ]
+        )
+      }
+      return
+    }
+
     Alert.alert(
       "Delete Category",
       `Are you sure you want to delete "${category.label}"?`,
@@ -127,6 +209,8 @@ export default function CategoriesScreen() {
           onPress: async () => {
             try {
               await deleteCategory(category._id)
+              await fetchCategories()
+              Alert.alert("Success", "Category deleted successfully")
             } catch (error) {
               Alert.alert("Error", "Failed to delete category")
             }
@@ -186,14 +270,42 @@ export default function CategoriesScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.categoriesContainer}>
             {currentCategories.map((category, index) => (
               <TouchableOpacity
                 key={category._id}
-                style={styles.categoryItem}
-                onLongPress={() => handleEditCategory(category)}
+                style={[
+                  styles.categoryItem,
+                  { width: getCardWidth() },
+                  !canModifyCategory(category) && styles.lockedCategoryItem,
+                ]}
+                onPress={() => handleEditCategory(category)}
+                activeOpacity={0.7}
               >
+                {/* Show delete button only for modifiable categories */}
+                {canModifyCategory(category) && (
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteCategory(category)}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+
+                {/* Show lock icon for protected categories */}
+                {!canModifyCategory(category) && (
+                  <View style={styles.lockIndicator}>
+                    <Ionicons
+                      name={
+                        category.isDefault ? "shield-checkmark" : "lock-closed"
+                      }
+                      size={12}
+                      color="#F59E0B"
+                    />
+                  </View>
+                )}
+
                 <View
                   style={[
                     styles.categoryIcon,
@@ -206,24 +318,43 @@ export default function CategoriesScreen() {
                     color={category.color}
                   />
                 </View>
-                <Text style={styles.categoryName}>{category.label}</Text>
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleDeleteCategory(category)}
-                >
-                  <Ionicons name="close-circle" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                <Text style={styles.categoryName} numberOfLines={2}>
+                  {category.label}
+                </Text>
+
+                {/* Show transaction count if exists */}
+                {category.transactionCount > 0 && (
+                  <Text style={styles.transactionCount}>
+                    {category.transactionCount} transaction
+                    {category.transactionCount !== 1 ? "s" : ""}
+                  </Text>
+                )}
+
+                {/* Show default badge */}
+                {category.isDefault && (
+                  <View style={styles.defaultBadge}>
+                    <Text style={styles.defaultBadgeText}>Default</Text>
+                  </View>
+                )}
               </TouchableOpacity>
             ))}
           </View>
 
           {currentCategories.length === 0 && (
             <View style={styles.emptyState}>
-              <Ionicons name="apps-outline" size={48} color="#D1D5DB" />
+              <View style={styles.emptyStateIcon}>
+                <Ionicons name="apps-outline" size={48} color="#D1D5DB" />
+              </View>
               <Text style={styles.emptyText}>No categories found</Text>
               <Text style={styles.emptySubtext}>
                 Add your first {activeTab} category
               </Text>
+              <TouchableOpacity
+                style={styles.emptyActionButton}
+                onPress={() => setShowAddModal(true)}
+              >
+                <Text style={styles.emptyActionText}>Add Category</Text>
+              </TouchableOpacity>
             </View>
           )}
         </ScrollView>
@@ -233,76 +364,112 @@ export default function CategoriesScreen() {
           visible={showAddModal}
           transparent
           animationType="slide"
-          onRequestClose={() => setShowAddModal(false)}
+          onRequestClose={resetModal}
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
-                {editingCategory ? "Edit Category" : "Add Category"}
-              </Text>
-
-              <Text style={styles.inputLabel}>Category Name</Text>
-              <TextInput
-                style={styles.input}
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-                placeholder="Enter category name"
-                autoFocus
-              />
-
-              <Text style={styles.inputLabel}>Select Icon</Text>
+              {/* Scrollable Content */}
               <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.iconSelector}
+                style={styles.modalScrollView}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                {icons.map((icon) => (
-                  <TouchableOpacity
-                    key={icon}
-                    style={[
-                      styles.iconOption,
-                      selectedIcon === icon && styles.selectedIconOption,
-                    ]}
-                    onPress={() => setSelectedIcon(icon)}
+                <Text style={styles.modalTitle}>
+                  {editingCategory ? "Edit Category" : "Add Category"}
+                </Text>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Category Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={newCategoryName}
+                    onChangeText={setNewCategoryName}
+                    placeholder="Enter category name"
+                    autoFocus
+                    maxLength={20}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Select Icon</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.iconSelector}
+                    contentContainerStyle={styles.iconSelectorContent}
                   >
-                    <Ionicons
-                      name={icon}
-                      size={24}
-                      color={selectedIcon === icon ? "#FFFFFF" : "#6B7280"}
-                    />
-                  </TouchableOpacity>
-                ))}
+                    {icons.map((icon) => (
+                      <TouchableOpacity
+                        key={icon}
+                        style={[
+                          styles.iconOption,
+                          selectedIcon === icon && styles.selectedIconOption,
+                        ]}
+                        onPress={() => setSelectedIcon(icon)}
+                      >
+                        <Ionicons
+                          name={icon}
+                          size={20}
+                          color={selectedIcon === icon ? "#FFFFFF" : "#6B7280"}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Select Color</Text>
+                  <View style={styles.colorSelector}>
+                    {colors.map((color) => (
+                      <TouchableOpacity
+                        key={color}
+                        style={[
+                          styles.colorOption,
+                          { backgroundColor: color },
+                          selectedColor === color && styles.selectedColorOption,
+                        ]}
+                        onPress={() => setSelectedColor(color)}
+                      >
+                        {selectedColor === color && (
+                          <Ionicons
+                            name="checkmark"
+                            size={14}
+                            color="#FFFFFF"
+                          />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Preview Section */}
+                <View style={styles.previewSection}>
+                  <Text style={styles.inputLabel}>Preview</Text>
+                  <View style={styles.previewCard}>
+                    <View
+                      style={[
+                        styles.previewIcon,
+                        { backgroundColor: `${selectedColor}20` },
+                      ]}
+                    >
+                      <Ionicons
+                        name={selectedIcon}
+                        size={24}
+                        color={selectedColor}
+                      />
+                    </View>
+                    <Text style={styles.previewText}>
+                      {newCategoryName || "Category Name"}
+                    </Text>
+                  </View>
+                </View>
               </ScrollView>
 
-              <Text style={styles.inputLabel}>Select Color</Text>
-              <View style={styles.colorSelector}>
-                {colors.map((color) => (
-                  <TouchableOpacity
-                    key={color}
-                    style={[
-                      styles.colorOption,
-                      { backgroundColor: color },
-                      selectedColor === color && styles.selectedColorOption,
-                    ]}
-                    onPress={() => setSelectedColor(color)}
-                  >
-                    {selectedColor === color && (
-                      <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </View>
-
+              {/* Fixed Action Buttons */}
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.cancelButton}
-                  onPress={() => {
-                    setShowAddModal(false)
-                    setEditingCategory(null)
-                    setNewCategoryName("")
-                    setSelectedIcon("apps-outline")
-                    setSelectedColor("#1CC29F")
-                  }}
+                  onPress={resetModal}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
@@ -392,20 +559,27 @@ const styles = StyleSheet.create({
   categoriesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: 12,
   },
   categoryItem: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     alignItems: "center",
-    minWidth: 100,
     position: "relative",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
+    aspectRatio: 1, // Makes cards square
+    justifyContent: "center",
+  },
+  lockedCategoryItem: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   categoryIcon: {
     width: 48,
@@ -420,41 +594,101 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111827",
     textAlign: "center",
+    marginBottom: 4,
   },
   deleteButton: {
     position: "absolute",
-    top: -8,
-    right: -8,
+    top: -6,
+    right: -6,
     backgroundColor: "#FFFFFF",
-    borderRadius: 10,
+    borderRadius: 12,
+    padding: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    zIndex: 1,
+  },
+  lockIndicator: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#F59E0B",
+    zIndex: 1,
+  },
+  transactionCount: {
+    fontSize: 10,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  defaultBadge: {
+    position: "absolute",
+    bottom: -6,
+    backgroundColor: "#1CC29F",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  defaultBadgeText: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 60,
   },
+  emptyStateIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+  },
   emptyText: {
     fontSize: 18,
     fontWeight: "600",
     color: "#111827",
-    marginTop: 16,
+    marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     color: "#6B7280",
-    marginTop: 4,
+    marginBottom: 24,
+  },
+  emptyActionButton: {
+    backgroundColor: "#1CC29F",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  emptyActionText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    padding: 20,
+    justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 24,
-    maxHeight: "80%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "90%",
+    paddingTop: 20,
+  },
+  modalScrollView: {
+    maxHeight: "85%",
   },
   modalTitle: {
     fontSize: 20,
@@ -462,13 +696,17 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 20,
     textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  inputGroup: {
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
     fontWeight: "600",
     color: "#374151",
     marginBottom: 8,
-    marginTop: 16,
   },
   input: {
     backgroundColor: "#F9FAFB",
@@ -481,12 +719,15 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   iconSelector: {
-    marginBottom: 8,
+    maxHeight: 60,
+  },
+  iconSelectorContent: {
+    paddingRight: 24,
   },
   iconOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     backgroundColor: "#F9FAFB",
     justifyContent: "center",
     alignItems: "center",
@@ -502,12 +743,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginBottom: 16,
   },
   colorOption: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
@@ -516,11 +756,41 @@ const styles = StyleSheet.create({
   selectedColorOption: {
     borderColor: "#FFFFFF",
     borderWidth: 3,
+    transform: [{ scale: 1.1 }],
+  },
+  previewSection: {
+    paddingHorizontal: 24,
+    marginBottom: 20,
+  },
+  previewCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+  },
+  previewIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  previewText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
   },
   modalActions: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
   },
   cancelButton: {
     flex: 1,

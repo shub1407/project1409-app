@@ -140,9 +140,9 @@ export const CategoryProvider = ({ children }) => {
   }
 
   // Create new category
-  const createCategory = async (categoryData) => {
+  const addCategory = async (categoryData) => {
     try {
-      const result = await categoryService.createCategory(categoryData)
+      const result = await categoryService.addCategory(categoryData)
 
       if (result.success) {
         dispatch({ type: ACTIONS.ADD_CATEGORY, payload: result.data })
@@ -221,7 +221,7 @@ export const CategoryProvider = ({ children }) => {
 
     // Actions
     fetchCategories,
-    createCategory,
+    addCategory,
     updateCategory,
     deleteCategory,
 

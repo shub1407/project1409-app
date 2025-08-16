@@ -66,7 +66,7 @@ export default function ProfileScreen() {
     {
       icon: "apps-outline",
       title: "Categories",
-      route: "users/profile/categories",
+      route: "/users/profile/categories",
       color: "#8B5CF6",
     },
     {
