@@ -16,8 +16,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { useAccountsContext } from "../../src/context/AccountContext" // adjust path if needed
-import { accountService } from "../../src/services/accountService" // adjust path if needed
+import { useAccountsContext } from "../../../src/context/AccountContext" // adjust path if needed
+import { accountService } from "../../../src/services/accountService" // adjust path if needed
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 /* -------------------------
@@ -302,7 +302,7 @@ export default function AddAccountScreen() {
             text: "OK",
             onPress: () => {
               resetForm()
-              router.replace("/")
+              router.replace("/users/home")
             },
           },
         ])

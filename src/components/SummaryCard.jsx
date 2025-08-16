@@ -76,7 +76,7 @@ const SummaryCard = ({
 
   const handleViewDetailAnalysis = () => {
     router.push({
-      pathname: "/(tabs)/reports",
+      pathname: "/users/records/reports",
       params: {
         accountId: selectedAccountId || "",
         dateRange: filters.dateRange,

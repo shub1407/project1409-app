@@ -17,9 +17,9 @@ import {
   View,
 } from "react-native"
 import { PieChart } from "react-native-chart-kit"
-import TransactionList from "../../src/components/TransactionList"
-import { useAccountsContext } from "../../src/context/AccountContext"
-import { baseUrl } from "../../src/utility/constant"
+import TransactionList from "../../../src/components/TransactionList"
+import { useAccountsContext } from "../../../src/context/AccountContext"
+import { baseUrl } from "../../../src/utility/constant"
 const screenWidth = Dimensions.get("window").width
 
 const ReportsScreen = () => {
@@ -352,7 +352,7 @@ const ReportsScreen = () => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push("/(tabs)/records")}
+            onPress={() => router.push("/users/records")}
           >
             <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>

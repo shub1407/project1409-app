@@ -16,9 +16,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { DeleteConfirmationModal } from "../../src/components/DeleteModal" // Import the component
-import { useAccountsContext } from "../../src/context/AccountContext"
-import { accountService } from "../../src/services/accountService"
+import { DeleteConfirmationModal } from "../../../src/components/DeleteModal" // Import the component
+import { useAccountsContext } from "../../../src/context/AccountContext"
+import { accountService } from "../../../src/services/accountService"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 

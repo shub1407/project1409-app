@@ -10,11 +10,11 @@ import {
 } from "react-native"
 // Remove this line: import { ScrollView } from "react-native-web"
 import { useFocusEffect } from "expo-router"
-import ListOfAccounts from "../../src/components/ListOfAccounts"
-import TransactionCard from "../../src/components/TransactionCard"
-import { useAccountsContext } from "../../src/context/AccountContext"
-import { useAuth } from "../../src/context/AuthContext"
-import transactionService from "../../src/services/transactionService"
+import ListOfAccounts from "../../../src/components/ListOfAccounts"
+import TransactionCard from "../../../src/components/TransactionCard"
+import { useAccountsContext } from "../../../src/context/AccountContext"
+import { useAuth } from "../../../src/context/AuthContext"
+import transactionService from "../../../src/services/transactionService"
 const { width: screenWidth } = Dimensions.get("window")
 
 export default function AccountsScreen() {
@@ -61,18 +61,18 @@ export default function AccountsScreen() {
   }
 
   const handleViewAllTransactions = () => {
-    router.push("/(tabs)/records")
+    router.push("/users/records")
   }
 
   const handleAccountPress = (account) => {
     router.push({
-      pathname: "/(tabs)/edit-account",
+      pathname: "/users/home/edit-account",
       params: { accountId: account.id },
     })
   }
 
   const handleAddAccount = () => {
-    router.push("/add-account")
+    router.push("/users/home/add-account")
   }
 
   const handleViewRecords = () => {
@@ -80,7 +80,7 @@ export default function AccountsScreen() {
   }
 
   const handleSettingsPress = () => {
-    router.push("/(tabs)/account-setting")
+    router.push("/users/home/account-setting")
   }
 
   return (

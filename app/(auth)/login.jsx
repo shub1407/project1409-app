@@ -45,7 +45,7 @@ export default function LoginScreen() {
     const result = await signIn(email, password)
 
     if (result.success) {
-      router.replace("/(tabs)")
+      router.replace("/users/home")
     } else {
       Alert.alert("Error", result.error || "Login failed")
     }

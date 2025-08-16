@@ -418,7 +418,8 @@ export default function AddTransactionScreen() {
                           [
                             {
                               text: "Add Account",
-                              onPress: () => router.push("/(tabs)/add-account"),
+                              onPress: () =>
+                                router.push("/users/home/add-account"),
                             },
                             { text: "Cancel", style: "cancel" },
                           ]
@@ -483,7 +484,8 @@ export default function AddTransactionScreen() {
                           [
                             {
                               text: "Add Account",
-                              onPress: () => router.push("/(tabs)/add-account"),
+                              onPress: () =>
+                                router.push("/users/home/add-account"),
                             },
                             { text: "Cancel", style: "cancel" },
                           ]
@@ -541,7 +543,8 @@ export default function AddTransactionScreen() {
                         [
                           {
                             text: "Add Account",
-                            onPress: () => router.push("/(tabs)/add-account"),
+                            onPress: () =>
+                              router.push("/users/home/add-account"),
                           },
                           { text: "Cancel", style: "cancel" },
                         ]

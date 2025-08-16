@@ -56,7 +56,7 @@ const TransactionItem = ({
       onPress={() => {
         console.log("Transaction tapped:", transaction)
         router.push({
-          pathname: "/(tabs)/edit-record",
+          pathname: "/users/records/edit-record",
           params: { transactionId: transaction._id },
         })
       }}

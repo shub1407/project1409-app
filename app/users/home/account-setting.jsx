@@ -18,7 +18,7 @@ import DraggableFlatList, {
   ScaleDecorator,
 } from "react-native-draggable-flatlist"
 import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler"
-import { useAccountsContext } from "../../src/context/AccountContext"
+import { useAccountsContext } from "../../../src/context/AccountContext"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
@@ -79,7 +79,7 @@ export default function AccountSettingsScreen() {
   const handleEditAccount = (account) => {
     swipeableRefs.forEach((ref) => ref?.close())
     router.push({
-      pathname: "/(tabs)/edit-account",
+      pathname: "/users/home/edit-account",
       params: { accountId: account.id },
     })
   }
@@ -326,7 +326,7 @@ export default function AccountSettingsScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.addAccountButton}
-                onPress={() => router.push("/add-account")}
+                onPress={() => router.push("/users/home/add-account")}
               >
                 <Ionicons name="add" size={20} color="#FFFFFF" />
                 <Text style={styles.addAccountButtonText}>Add Account</Text>

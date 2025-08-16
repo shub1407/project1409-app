@@ -13,10 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { useAccountsContext } from "../../src/context/AccountContext"
-import { useCategoryContext } from "../../src/context/CategoryContext"
-import transactionService from "../../src/services/transactionService"
-import styles from "../../src/styles/add"
+import { useAccountsContext } from "../../../src/context/AccountContext"
+import { useCategoryContext } from "../../../src/context/CategoryContext"
+import transactionService from "../../../src/services/transactionService"
+import styles from "../../../src/styles/add"
 
 export default function EditTransactionScreen() {
   const { transactionId } = useLocalSearchParams()
@@ -288,7 +288,9 @@ export default function EditTransactionScreen() {
           {
             text: "Discard",
             style: "destructive",
-            onPress: () => router.back(),
+            onPress: () => {
+              router.replace("/users/records")
+            },
           },
         ]
       )
@@ -519,7 +521,8 @@ export default function EditTransactionScreen() {
                           [
                             {
                               text: "Add Account",
-                              onPress: () => router.push("/(tabs)/add-account"),
+                              onPress: () =>
+                                router.push("/users/home/add-account"),
                             },
                             { text: "Cancel", style: "cancel" },
                           ]
@@ -581,7 +584,8 @@ export default function EditTransactionScreen() {
                           [
                             {
                               text: "Add Account",
-                              onPress: () => router.push("/(tabs)/add-account"),
+                              onPress: () =>
+                                router.push("/users/home/add-account"),
                             },
                             { text: "Cancel", style: "cancel" },
                           ]
@@ -636,7 +640,8 @@ export default function EditTransactionScreen() {
                         [
                           {
                             text: "Add Account",
-                            onPress: () => router.push("/(tabs)/add-account"),
+                            onPress: () =>
+                              router.push("/users/home/add-account"),
                           },
                           { text: "Cancel", style: "cancel" },
                         ]

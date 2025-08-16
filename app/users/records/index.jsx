@@ -14,11 +14,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import FilterModal from "../../src/components/FilterModal"
-import SummaryCard from "../../src/components/SummaryCard" // Import the new component
-import TransactionList from "../../src/components/TransactionList"
-import { useAccountsContext } from "../../src/context/AccountContext"
-import transactionService from "../../src/services/transactionService"
+import FilterModal from "../../../src/components/FilterModal"
+import SummaryCard from "../../../src/components/SummaryCard" // Import the new component
+import TransactionList from "../../../src/components/TransactionList"
+import { useAccountsContext } from "../../../src/context/AccountContext"
+import transactionService from "../../../src/services/transactionService"
 export default function RecordsScreen() {
   const [allTransactions, setAllTransactions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -294,7 +294,9 @@ export default function RecordsScreen() {
           <View style={styles.headerLeft}>
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => router.back()}
+              onPress={() => {
+                router.replace("/users/home")
+              }}
             >
               <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
             </TouchableOpacity>

@@ -22,49 +22,6 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
       .slice(0, 5)
   }, [transactions])
 
-  const formatAmount = (amount, type) => {
-    const formattedAmount = `₹${Math.abs(amount).toFixed(0)}`
-    return type === "income" ? `+${formattedAmount}` : `-${formattedAmount}`
-  }
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    const today = new Date()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    if (date.toDateString() === today.toDateString()) {
-      return "Today"
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return "Yesterday"
-    } else {
-      return date.toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-      })
-    }
-  }
-
-  const getTransactionIcon = (type, category) => {
-    if (type === "transfer") return "swap-horizontal"
-    if (type === "income") return "trending-up"
-
-    // Category-based icons for expenses
-    const categoryIcons = {
-      food: "restaurant",
-      transport: "car",
-      shopping: "bag",
-      entertainment: "game-controller",
-      healthcare: "medical",
-      education: "school",
-      utilities: "flash",
-      rent: "home",
-      fuel: "car-sport",
-    }
-
-    return categoryIcons[category?.toLowerCase()] || "trending-down"
-  }
-
   const getTransactionTypeColor = (type) => {
     const colors = {
       income: "#1CC29F",
@@ -78,10 +35,6 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`
-  }
-
-  const handleTransactionPress = (transaction) => {
-    router.push(`/edit-record?transactionId=${transaction._id}`)
   }
 
   if (loading) {
@@ -118,7 +71,7 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
           </Text>
           <TouchableOpacity
             style={styles.addFirstButton}
-            onPress={() => router.push("/(tabs)/add")}
+            onPress={() => router.push("/users/add-record")}
           >
             <Ionicons name="add" size={20} color="#FFFFFF" />
             <Text style={styles.addFirstButtonText}>Add Transaction</Text>

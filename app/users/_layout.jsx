@@ -41,7 +41,7 @@ export default function TabLayout() {
             }}
           >
             <Tabs.Screen
-              name="index"
+              name="home"
               options={{
                 title: "Accounts",
                 tabBarIcon: ({ color, size, focused }) => (
@@ -68,7 +68,7 @@ export default function TabLayout() {
               }}
             />
             <Tabs.Screen
-              name="add"
+              name="add-record"
               options={{
                 title: "",
                 tabBarStyle: { display: "none" },
@@ -121,50 +121,6 @@ export default function TabLayout() {
                     color={color}
                   />
                 ),
-              }}
-            />
-            <Tabs.Screen
-              name="add-account"
-              options={{
-                title: "Add Account",
-                href: null, // This prevents it from showing in the tab bar
-                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
-              }}
-            />
-            <Tabs.Screen
-              name="reports"
-              options={{
-                title: "Detailed Report",
-                href: null, // This prevents it from showing in the tab bar
-                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
-                // Hide tab bar on this screen
-              }}
-            />
-            <Tabs.Screen
-              name="account-setting"
-              options={{
-                title: "Account Settings",
-                href: null, // This prevents it from showing in the tab bar
-                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
-                // Hide tab bar on this screen
-              }}
-            />
-            <Tabs.Screen
-              name="edit-account"
-              options={{
-                title: "Edit Settings",
-                href: null, // This prevents it from showing in the tab bar
-                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
-                // Hide tab bar on this screen
-              }}
-            />
-            <Tabs.Screen
-              name="edit-record"
-              options={{
-                title: "Edit Record",
-                href: null, // This prevents it from showing in the tab bar
-                tabBarStyle: { display: "none" }, // Hide tab bar on this screen
-                // Hide tab bar on this screen
               }}
             />
           </Tabs>
