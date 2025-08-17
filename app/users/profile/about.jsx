@@ -12,16 +12,6 @@ import {
 } from "react-native"
 
 export default function AboutScreen() {
-  const teamMembers = [
-    { name: "John Doe", role: "Founder & CEO", icon: "person-outline" },
-    { name: "Jane Smith", role: "CTO", icon: "code-outline" },
-    {
-      name: "Mike Johnson",
-      role: "Lead Designer",
-      icon: "color-palette-outline",
-    },
-  ]
-
   const features = [
     {
       icon: "wallet-outline",
@@ -55,13 +45,13 @@ export default function AboutScreen() {
     {
       platform: "Twitter",
       icon: "logo-twitter",
-      url: "https://twitter.com/splitbudget",
+      url: "https://twitter.com/splitbudgetapp",
       color: "#1DA1F2",
     },
     {
       platform: "Instagram",
       icon: "logo-instagram",
-      url: "https://instagram.com/splitbudget",
+      url: "https://instagram.com/splitbudgetapp",
       color: "#E4405F",
     },
     {
@@ -91,7 +81,7 @@ export default function AboutScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>About Us</Text>
+          <Text style={styles.headerTitle}>About SplitBudget</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -102,9 +92,35 @@ export default function AboutScreen() {
               <Text style={styles.appIconText}>💰</Text>
             </View>
             <Text style={styles.appName}>SplitBudget</Text>
-            <Text style={styles.appTagline}>Smart Finance Management</Text>
+            <Text style={styles.appTagline}>
+              Because adulting is hard enough already
+            </Text>
             <Text style={styles.versionInfo}>
-              Version 1.0.0 (Build 2025.08.16)
+              Version 1.0.0 (Build 2025.08.17)
+            </Text>
+          </View>
+
+          {/* Company Story */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>About SplitBudget 🚀</Text>
+
+            <Text style={styles.companyStory}>
+              SplitBudget was born in 2025 from a simple but relatable problem:
+              juggling multiple apps just to figure out if you could afford that
+              packet of Kurkure without going broke 🧡
+            </Text>
+
+            <Text style={styles.companyStory}>
+              <Text style={styles.highlight}>The real problem?</Text> People
+              kept forgetting who paid for what when hanging out with friends,
+              and personal budgeting felt like rocket science. So instead of
+              accepting the status quo, we decided to build our way out of the
+              problem 🤷‍♂️
+            </Text>
+
+            <Text style={styles.companyStory}>
+              We're a lean, mean, problem-solving machine dedicated to making
+              your financial life less chaotic - one expense at a time.
             </Text>
           </View>
 
@@ -112,20 +128,22 @@ export default function AboutScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Our Mission</Text>
             <Text style={styles.missionText}>
-              We believe that managing money shouldn't be complicated.
-              SplitBudget is designed to make personal finance simple,
-              intuitive, and accessible to everyone.
+              <Text style={styles.highlight}>Simple:</Text> Make money
+              management less painful than watching your savings disappear on
+              late-night Maggie runs and Kurkure cravings.
             </Text>
             <Text style={styles.missionText}>
-              Whether you're tracking personal expenses or splitting costs with
-              friends, our app provides the tools you need to stay on top of
-              your finances.
+              We believe finance apps should be like good friends - helpful,
+              reliable, and they don't judge you for that 2 AM Maggie session
+              (we've all been there).
             </Text>
           </View>
 
           {/* Key Features */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Key Features</Text>
+            <Text style={styles.sectionTitle}>
+              What SplitBudget Actually Does
+            </Text>
             <View style={styles.featuresList}>
               {features.map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
@@ -143,43 +161,107 @@ export default function AboutScreen() {
             </View>
           </View>
 
-          {/* Our Story */}
+          {/* Origin Story */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Our Story</Text>
+            <Text style={styles.sectionTitle}>The Origin Story 🦸‍♂️</Text>
             <Text style={styles.storyText}>
-              SplitBudget was born out of frustration with existing finance apps
-              that were either too complex or too simple. We wanted to create
-              something that strikes the perfect balance - powerful enough for
-              serious budgeting, yet simple enough for everyday use.
+              <Text style={styles.highlight}>2024:</Text> A group of friends
+              sitting around after sharing a packet of Kurkure, spending 20
+              minutes calculating who owes what for snacks. Meanwhile,
+              everyone's trying to remember if they've exceeded their monthly
+              "Maggie and random cravings" budget.
             </Text>
             <Text style={styles.storyText}>
-              Founded in 2024 by a team of finance enthusiasts and tech experts,
-              we've been on a mission to help people take control of their
-              financial lives through smart, user-friendly technology.
+              <Text style={styles.highlight}>The revelation:</Text> Existing
+              apps were either too complicated (like doing taxes), too simple
+              (like a calculator), or required a PhD in finance to understand.
+            </Text>
+            <Text style={styles.storyText}>
+              <Text style={styles.highlight}>The solution:</Text> Build
+              something that doesn't make you want to throw your phone out the
+              window. Hence, SplitBudget was born in 2025 - powered by Maggie,
+              Kurkure crunches, and way too many late nights.
             </Text>
           </View>
 
-          {/* Team */}
+          {/* Company Values */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Meet the Team</Text>
-            <View style={styles.teamList}>
-              {teamMembers.map((member, index) => (
-                <View key={index} style={styles.teamMember}>
-                  <View style={styles.memberAvatar}>
-                    <Ionicons name={member.icon} size={20} color="#1CC29F" />
-                  </View>
-                  <View>
-                    <Text style={styles.memberName}>{member.name}</Text>
-                    <Text style={styles.memberRole}>{member.role}</Text>
-                  </View>
+            <Text style={styles.sectionTitle}>What We Stand For</Text>
+            <View style={styles.valuesList}>
+              <View style={styles.valueItem}>
+                <Text style={styles.valueEmoji}>🎯</Text>
+                <View style={styles.valueContent}>
+                  <Text style={styles.valueTitle}>Simplicity First</Text>
+                  <Text style={styles.valueText}>
+                    If it takes more than 3 taps, we're doing it wrong
+                  </Text>
                 </View>
-              ))}
+              </View>
+              <View style={styles.valueItem}>
+                <Text style={styles.valueEmoji}>🤝</Text>
+                <View style={styles.valueContent}>
+                  <Text style={styles.valueTitle}>No Judgment Zone</Text>
+                  <Text style={styles.valueText}>
+                    Your 3 AM online shopping spree is safe with us
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.valueItem}>
+                <Text style={styles.valueEmoji}>🚀</Text>
+                <View style={styles.valueContent}>
+                  <Text style={styles.valueTitle}>Built for Real People</Text>
+                  <Text style={styles.valueText}>
+                    By people who actually use the app (and face the same money
+                    problems)
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
 
-          {/* Contact & Social */}
+          {/* Fun Facts */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Connect With Us</Text>
+            <Text style={styles.sectionTitle}>Fun Facts About Our Journey</Text>
+            <View style={styles.funFactsList}>
+              <View style={styles.funFact}>
+                <Text style={styles.funFactEmoji}>🍜</Text>
+                <Text style={styles.funFactText}>
+                  Approximately 183 packets of Maggie were consumed during
+                  development (2-minute cooking time = perfect debugging breaks)
+                </Text>
+              </View>
+              <View style={styles.funFact}>
+                <Text style={styles.funFactEmoji}>🧡</Text>
+                <Text style={styles.funFactText}>
+                  Kurkure was the official "thinking snack" - crunchy problems
+                  need crunchy solutions
+                </Text>
+              </View>
+              <View style={styles.funFact}>
+                <Text style={styles.funFactEmoji}>🌙</Text>
+                <Text style={styles.funFactText}>
+                  85% of the features were built between 11 PM and 3 AM (optimal
+                  coding hours with Maggie fuel)
+                </Text>
+              </View>
+              <View style={styles.funFact}>
+                <Text style={styles.funFactEmoji}>🐛</Text>
+                <Text style={styles.funFactText}>
+                  We found and fixed exactly 1,247 bugs (and probably created
+                  1,248 new ones in the process)
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Connect */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Let's Connect!</Text>
+            <Text style={styles.connectText}>
+              Found a bug? Have a feature request? Just want to say hi? We're
+              probably awake, coding, and munching on something crunchy anyway
+              🤓
+            </Text>
             <View style={styles.socialLinks}>
               {socialLinks.map((link, index) => (
                 <TouchableOpacity
@@ -197,11 +279,11 @@ export default function AboutScreen() {
 
           {/* Legal & Support */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Support & Legal</Text>
+            <Text style={styles.sectionTitle}>The Boring Legal Stuff</Text>
             <View style={styles.legalLinks}>
               <TouchableOpacity
                 style={styles.legalLink}
-                onPress={() => router.push("/profile/privacy")}
+                onPress={() => router.push("/users/profile/privacy")}
               >
                 <Ionicons
                   name="shield-checkmark-outline"
@@ -214,7 +296,7 @@ export default function AboutScreen() {
 
               <TouchableOpacity
                 style={styles.legalLink}
-                onPress={() => router.push("/profile/terms")}
+                onPress={() => router.push("/users/profile/terms")}
               >
                 <Ionicons
                   name="document-text-outline"
@@ -227,7 +309,7 @@ export default function AboutScreen() {
 
               <TouchableOpacity
                 style={styles.legalLink}
-                onPress={() => router.push("/profile/feedback")}
+                onPress={() => router.push("/users/profile/feedback")}
               >
                 <Ionicons
                   name="help-circle-outline"
@@ -242,13 +324,17 @@ export default function AboutScreen() {
 
           {/* Thank You */}
           <View style={styles.thankYouSection}>
-            <Text style={styles.thankYouTitle}>Thank You!</Text>
+            <Text style={styles.thankYouTitle}>
+              Thanks for Using SplitBudget! 🙏
+            </Text>
             <Text style={styles.thankYouText}>
-              Thank you for choosing SplitBudget. We're committed to helping you
-              achieve your financial goals and making money management a breeze.
+              You're helping make financial management less chaotic for
+              everyone. Together, we're building something that actually works
+              for real people with real money problems! 🎉
             </Text>
             <Text style={styles.copyright}>
-              © 2024 SplitBudget. All rights reserved.
+              © 2025 SplitBudget. Made with ❤️, 🍜, 🧡 and a lot of
+              determination.
             </Text>
           </View>
         </ScrollView>
@@ -325,6 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
     marginBottom: 8,
+    fontStyle: "italic",
   },
   versionInfo: {
     fontSize: 14,
@@ -346,6 +433,92 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111827",
     marginBottom: 16,
+  },
+  founderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#1CC29F",
+  },
+  founderAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#1CC29F",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  companyStory: {
+    fontSize: 15,
+    color: "#374151",
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+  valuesList: {
+    gap: 16,
+  },
+  valueItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  valueEmoji: {
+    fontSize: 24,
+    marginRight: 16,
+    marginTop: 2,
+  },
+  valueContent: {
+    flex: 1,
+  },
+  valueTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  valueText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+  },
+
+  founderInitials: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  founderInfo: {
+    flex: 1,
+  },
+  founderName: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 2,
+  },
+  founderTitle: {
+    fontSize: 14,
+    color: "#1CC29F",
+    fontWeight: "600",
+    marginBottom: 2,
+  },
+  founderYear: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  founderStory: {
+    fontSize: 15,
+    color: "#374151",
+    lineHeight: 24,
+    marginBottom: 12,
+  },
+  highlight: {
+    fontWeight: "700",
+    color: "#1CC29F",
   },
   missionText: {
     fontSize: 15,
@@ -389,30 +562,32 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 12,
   },
-  teamList: {
+  funFactsList: {
     gap: 12,
   },
-  teamMember: {
+  funFact: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    backgroundColor: "#F9FAFB",
+    padding: 12,
+    borderRadius: 12,
   },
-  memberAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F0FDF4",
-    justifyContent: "center",
-    alignItems: "center",
+  funFactEmoji: {
+    fontSize: 20,
     marginRight: 12,
+    marginTop: 2,
   },
-  memberName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  memberRole: {
+  funFactText: {
+    flex: 1,
     fontSize: 14,
-    color: "#6B7280",
+    color: "#374151",
+    lineHeight: 20,
+  },
+  connectText: {
+    fontSize: 15,
+    color: "#374151",
+    lineHeight: 22,
+    marginBottom: 16,
   },
   socialLinks: {
     gap: 12,
@@ -452,7 +627,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0FDF4",
     borderRadius: 16,
     padding: 24,
-    marginBottom: 32,
+    marginBottom: 100,
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#1CC29F",

@@ -78,7 +78,7 @@ export default function SignupScreen() {
         // Auto-login after successful signup
         const loginResult = await signIn(email, password)
         if (loginResult.success) {
-          router.replace("/(tabs)")
+          router.replace("/users/home")
         }
       }
     } catch (error) {

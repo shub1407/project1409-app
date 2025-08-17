@@ -1,3 +1,4 @@
+// screens/FeedbackScreen.js
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import { useState } from "react"
@@ -12,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
+import feedbackService from "../../../../src/services/feedbackService"
 
 export default function FeedbackScreen() {
   const [feedbackType, setFeedbackType] = useState("bug")
@@ -48,23 +50,78 @@ export default function FeedbackScreen() {
   ]
 
   const handleSubmit = async () => {
+    // Validation
     if (!title.trim() || !description.trim()) {
       Alert.alert("Error", "Please fill in all required fields")
       return
     }
 
-    setLoading(true)
-    try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+    if (title.length < 5) {
+      Alert.alert("Error", "Title must be at least 5 characters long")
+      return
+    }
 
-      Alert.alert(
-        "Thank You!",
-        "Your feedback has been submitted successfully. We appreciate your input!",
-        [{ text: "OK", onPress: () => router.back() }]
-      )
+    if (description.length < 10) {
+      Alert.alert("Error", "Description must be at least 10 characters long")
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Check if user is authenticated
+      const isAuth = await feedbackService.isAuthenticated()
+      if (!isAuth) {
+        Alert.alert(
+          "Authentication Required",
+          "Please log in to submit feedback",
+          [{ text: "OK", onPress: () => router.push("/auth/login") }]
+        )
+        return
+      }
+
+      const apiData = {
+        type: feedbackType,
+        title: title.trim(),
+        description: description.trim(),
+        email: email.trim() || undefined,
+      }
+
+      console.log("Submitting feedback:", apiData)
+
+      // Submit feedback
+      const result = await feedbackService.submitFeedback(apiData)
+
+      if (result.success) {
+        Alert.alert(
+          "Thank You!",
+          "Your feedback has been submitted successfully. We appreciate your input!",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                // Reset form
+                setTitle("")
+                setDescription("")
+                setEmail("")
+                setFeedbackType("bug")
+                router.back()
+              },
+            },
+          ]
+        )
+      } else {
+        Alert.alert(
+          "Submission Failed",
+          result.error || "Failed to submit feedback. Please try again."
+        )
+      }
     } catch (error) {
-      Alert.alert("Error", "Failed to submit feedback. Please try again.")
+      console.error("Feedback submission error:", error)
+      Alert.alert(
+        "Error",
+        "An unexpected error occurred. Please check your internet connection and try again."
+      )
     } finally {
       setLoading(false)
     }
@@ -134,6 +191,7 @@ export default function FeedbackScreen() {
                 onChangeText={setTitle}
                 placeholder="Brief summary of your feedback"
                 maxLength={100}
+                editable={!loading}
               />
             </View>
 
@@ -148,6 +206,7 @@ export default function FeedbackScreen() {
                 numberOfLines={6}
                 textAlignVertical="top"
                 maxLength={1000}
+                editable={!loading}
               />
               <Text style={styles.charCount}>
                 {description.length}/1000 characters
@@ -163,6 +222,7 @@ export default function FeedbackScreen() {
                 placeholder="your@email.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                editable={!loading}
               />
               <Text style={styles.inputHint}>
                 We'll only use this to follow up on your feedback
@@ -208,6 +268,7 @@ export default function FeedbackScreen() {
   )
 }
 
+// Styles remain the same as in your original code
 const styles = StyleSheet.create({
   container: {
     flex: 1,

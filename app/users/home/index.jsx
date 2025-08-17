@@ -1,21 +1,25 @@
-import { router } from "expo-router"
-import { useCallback, useEffect, useState } from "react"
+import { Ionicons } from "@expo/vector-icons"
+import { router, useFocusEffect } from "expo-router"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Dimensions, // Import from react-native
+  Animated,
+  Dimensions,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native"
-// Remove this line: import { ScrollView } from "react-native-web"
-import { useFocusEffect } from "expo-router"
 import ListOfAccounts from "../../../src/components/ListOfAccounts"
 import TransactionCard from "../../../src/components/TransactionCard"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useAuth } from "../../../src/context/AuthContext"
 import transactionService from "../../../src/services/transactionService"
+
 const { width: screenWidth } = Dimensions.get("window")
+const HEADER_HEIGHT = 180 // Height of your header
 
 export default function AccountsScreen() {
   const [refreshing, setRefreshing] = useState(false)
@@ -25,9 +29,13 @@ export default function AccountsScreen() {
   const { user } = useAuth()
   const { accounts, refreshAccounts, loading } = useAccountsContext()
 
+  // Animated value for scroll position
+  const scrollY = useRef(new Animated.Value(0)).current
+
   useEffect(() => {
     loadTransactions()
   }, [])
+
   useFocusEffect(
     useCallback(() => {
       console.log("Screen is focused")
@@ -42,7 +50,7 @@ export default function AccountsScreen() {
   const loadTransactions = async () => {
     try {
       setTransactionsLoading(true)
-      const result = await transactionService.getTransactions({ limit: 2 })
+      const result = await transactionService.getTransactions({ limit: 4 })
       if (result) {
         console.log("Loaded transaction:: ", result.transactions.length)
         setTransactions(result.transactions)
@@ -83,25 +91,123 @@ export default function AccountsScreen() {
     router.push("/users/home/account-setting")
   }
 
+  const handleProfilePress = () => {
+    router.push("/users/profile")
+  }
+
+  const handleNotificationsPress = () => {
+    console.log("Notifications pressed")
+  }
+
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours()
+    if (hour < 12) return "Good Morning"
+    if (hour < 17) return "Good Afternoon"
+    return "Good Evening"
+  }
+
+  // Header animation - moves up when scrolling down
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT],
+    outputRange: [0, -HEADER_HEIGHT],
+    extrapolate: "clamp",
+  })
+
+  // Header opacity - fades out when scrolling
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT / 2, HEADER_HEIGHT],
+    outputRange: [1, 0.5, 0],
+    extrapolate: "clamp",
+  })
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
       <SafeAreaView style={styles.container}>
-        <ScrollView
+        {/* Animated Header */}
+        <Animated.View
+          style={[
+            styles.modernHeader,
+            {
+              transform: [{ translateY: headerTranslateY }],
+              opacity: headerOpacity,
+            },
+          ]}
+        >
+          <View style={styles.headerTop}>
+            <View style={styles.headerLeft}>
+              <View style={styles.appBranding}>
+                <Text style={styles.appName}>SplitBudget</Text>
+                <View style={styles.brandingDot} />
+              </View>
+              <Text style={styles.tagline}>Smart Finance Management</Text>
+            </View>
+
+            <View style={styles.headerRight}>
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={handleNotificationsPress}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={24}
+                  color="#FFFFFF"
+                />
+                <View style={styles.notificationBadge}>
+                  <Text style={styles.badgeText}>3</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.profileButton}
+                onPress={handleProfilePress}
+              >
+                <Text style={styles.profileInitial}>
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.welcomeSection}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.username}>
+              {user?.name?.split(" ")[0] || "User"} 👋
+            </Text>
+          </View>
+
+          {/* Decorative Elements */}
+          <View style={styles.headerDecorations}>
+            <View style={[styles.decorationCircle, styles.circle1]} />
+            <View style={[styles.decorationCircle, styles.circle2]} />
+            <View style={[styles.decorationCircle, styles.circle3]} />
+          </View>
+        </Animated.View>
+
+        {/* Animated ScrollView */}
+        <Animated.ScrollView
           style={styles.scrollView}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: HEADER_HEIGHT }, // Add padding to account for header
+          ]}
           showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16} // Smooth animation
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true } // Use native driver for better performance
+          )}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
               colors={["#1CC29F"]}
               tintColor="#1CC29F"
+              progressViewOffset={HEADER_HEIGHT} // Adjust for header height
             />
           }
-          contentContainerStyle={styles.scrollContent}
         >
-          {/* Add your header component here if you have one */}
-
           <ListOfAccounts
             accounts={accounts}
             onAccountPress={handleAccountPress}
@@ -114,7 +220,7 @@ export default function AccountsScreen() {
             loading={transactionsLoading}
             onViewAll={handleViewAllTransactions}
           />
-        </ScrollView>
+        </Animated.ScrollView>
       </SafeAreaView>
     </>
   )
@@ -125,14 +231,195 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F9FAFB",
   },
+
+  // Modern Header Styles (now animated and positioned absolutely)
+  modernHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: HEADER_HEIGHT,
+    backgroundColor: "#1CC29F",
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 32,
+    zIndex: 1000,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    overflow: "hidden",
+  },
+
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 24,
+  },
+
+  headerLeft: {
+    flex: 1,
+  },
+
+  appBranding: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+
+  appName: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+  },
+
+  brandingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#FFD700",
+    marginLeft: 8,
+    shadowColor: "#FFD700",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+
+  tagline: {
+    fontSize: 14,
+    color: "#FFFFFF",
+    opacity: 0.8,
+    fontWeight: "500",
+    letterSpacing: 0.5,
+  },
+
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  headerButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+
+  notificationBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    backgroundColor: "#FF6B6B",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#1CC29F",
+  },
+
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  profileInitial: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1CC29F",
+  },
+
+  welcomeSection: {
+    marginBottom: 8,
+  },
+
+  greeting: {
+    fontSize: 16,
+    color: "#FFFFFF",
+    opacity: 0.9,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+
+  username: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: -0.5,
+  },
+
+  // Decorative Elements
+  headerDecorations: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    pointerEvents: "none",
+  },
+
+  decorationCircle: {
+    position: "absolute",
+    borderRadius: 999,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+  },
+
+  circle1: {
+    width: 120,
+    height: 120,
+    top: -40,
+    right: -30,
+  },
+
+  circle2: {
+    width: 80,
+    height: 80,
+    top: 20,
+    right: -20,
+  },
+
+  circle3: {
+    width: 40,
+    height: 40,
+    bottom: 10,
+    right: 60,
+  },
+
   scrollView: {
     flex: 1,
   },
+
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 20, // Add some bottom padding
+    paddingBottom: 20,
   },
-  // ... rest of your existing styles
+
+  // Keep all your existing styles...
   header: {
     backgroundColor: "#1CC29F",
     paddingHorizontal: 24,
@@ -141,16 +428,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-  },
-  greeting: {
-    fontSize: 16,
-    color: "#FFFFFF",
-    opacity: 0.9,
-  },
-  username: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FFFFFF",
   },
   settingsButton: {
     width: 40,

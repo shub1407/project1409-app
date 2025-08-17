@@ -50,12 +50,12 @@ export default function ProfileScreen() {
 
   // Main Menu Options
   const mainOptions = [
-    {
-      icon: "person-outline",
-      title: "User Profile",
-      route: "/users/profile/user-profile",
-      color: "#1CC29F",
-    },
+    // {
+    //   icon: "person-outline",
+    //   title: "User Profile",
+    //   route: "/users/profile/user-profile",
+    //   color: "#1CC29F",
+    // },
     {
       icon: "star-outline",
       title: "Premium Plans",
@@ -172,10 +172,7 @@ export default function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity
-            style={styles.editProfileButton}
-            onPress={() => router.push("/profile/user-profile")}
-          >
+          <TouchableOpacity style={styles.editProfileButton}>
             <Ionicons name="create-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>

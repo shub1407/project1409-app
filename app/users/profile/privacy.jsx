@@ -134,7 +134,7 @@ Your continued use of the app after changes constitutes acceptance of the update
               <View style={styles.contactItem}>
                 <Ionicons name="location-outline" size={18} color="#1CC29F" />
                 <Text style={styles.contactDetail}>
-                  Mumbai, Maharashtra, India
+                  Hazaribagh, Jharkhand, India
                 </Text>
               </View>
             </View>

@@ -16,7 +16,11 @@ const ListOfAccounts = ({
   onSettingsPress,
 }) => {
   const formatCurrency = (amount) => {
-    return `₹${amount.toFixed(2)}`
+    return amount.toLocaleString("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 2,
+    })
   }
 
   return (
