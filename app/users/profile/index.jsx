@@ -72,7 +72,7 @@ export default function ProfileScreen() {
     {
       icon: "time-outline",
       title: "Scheduled Transactions",
-      route: "/users/profile/scheduled",
+      route: "/users/profile/schedule-payment",
       color: "#06B6D4",
     },
     {

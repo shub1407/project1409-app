@@ -3,7 +3,10 @@ import { Stack } from "expo-router"
 export default function Layout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ title: "Profile" }} />
+      <Stack.Screen
+        name="index"
+        options={{ title: "Profile", tabBarStyle: { display: "none" } }}
+      />
     </Stack>
   )
 }
