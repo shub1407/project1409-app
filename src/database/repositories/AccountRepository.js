@@ -1,4 +1,5 @@
 // repositories/AccountRepository.js
+import { Result } from "../../utility/Result.js"
 import { BaseRepository } from "./BaseRepository.js"
 
 export class AccountRepository extends BaseRepository {
@@ -42,9 +43,11 @@ export class AccountRepository extends BaseRepository {
         await this.update(id, { order_index: order })
       }
       await this.db.execAsync("COMMIT")
+      console.log("Account reordered successfully")
+      return Result.ok(null, "Accounts reordered successfully")
     } catch (error) {
       await this.db.execAsync("ROLLBACK")
-      throw error
+      return Result.fail("Failed to reorder accounts", error)
     }
   }
 

@@ -60,10 +60,10 @@ export const migration001 = {
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
           is_deleted INTEGER DEFAULT 0,
-          
-          FOREIGN KEY (account_id) REFERENCES accounts(id),
-          FOREIGN KEY (to_account_id) REFERENCES accounts(id),
-          FOREIGN KEY (category_id) REFERENCES categories(id)
+
+          FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+          FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
         )
       `)
 

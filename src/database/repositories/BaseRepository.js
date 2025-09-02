@@ -83,7 +83,7 @@ export class BaseRepository {
         params.push(...where.params)
       }
 
-      query += ` ORDER BY ${orderBy}`
+      query += ` ORDER BY ${toSnakeCase(orderBy)}`
       if (limit) query += ` LIMIT ?` && params.push(limit)
 
       const rows = await this.db.getAllAsync(query, params)

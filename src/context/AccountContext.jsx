@@ -1,7 +1,6 @@
 // contexts/AccountsContext.jsx
 import { createContext, useContext, useEffect, useState } from "react"
 import { useDatabase } from "../database/providers/DatabaseProvider"
-import { accountService } from "../services/accountService"
 import { Logger } from "../utility/logger"
 const AccountsContext = createContext()
 export const AccountsProvider = ({ children }) => {
@@ -14,7 +13,9 @@ export const AccountsProvider = ({ children }) => {
     setLoading(true)
     try {
       //const result = await accountService.getAccounts()
-      const result = await dbService.accounts.findAll()
+      const result = await dbService.accounts.findAll({
+        orderBy: "order_index ASC",
+      })
       Logger.info("Db result is:: ", result)
 
       const transformedAccounts = result.data.map((account) => ({
@@ -125,15 +126,11 @@ export const AccountsProvider = ({ children }) => {
       }))
 
       // Use bulk update
-      const result = await accountService.updateAccountsOrder(accountsData)
+      const result = await dbService.accounts.reorderAccounts(accountsData)
 
       if (result.success) {
         // Update local state with new order
-        const updatedAccounts = orderedAccounts.map((account, index) => ({
-          ...account,
-          order: index,
-        }))
-        setAccounts(updatedAccounts)
+        loadAccounts()
         return { success: true }
       } else {
         throw new Error(result.error || "Failed to update account order")
