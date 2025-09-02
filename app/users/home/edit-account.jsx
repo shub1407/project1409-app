@@ -18,7 +18,6 @@ import {
 } from "react-native"
 import { DeleteConfirmationModal } from "../../../src/components/DeleteModal" // Import the component
 import { useAccountsContext } from "../../../src/context/AccountContext"
-import { accountService } from "../../../src/services/accountService"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
@@ -242,14 +241,16 @@ function TypeModal({ visible, selectedType, onSelect, onClose }) {
    ------------------------- */
 export default function EditAccountScreen() {
   const { accountId } = useLocalSearchParams()
-  const { accounts, refreshAccounts, deleteAccount } = useAccountsContext()
-
+  const { accounts, refreshAccounts, deleteAccount, updateAccount } =
+    useAccountsContext()
+  console.log("accounts in edit account:: ", accounts)
   // Form state
   const [name, setName] = useState("")
   const [type, setType] = useState("savings")
-  const [balance, setBalance] = useState("")
+  const [initialBalance, setInitialBalance] = useState("")
   const [color, setColor] = useState("#1CC29F")
   const [icon, setIcon] = useState("wallet-outline")
+  // const [initialBalance, setInitialBalance] = useState("")
 
   // UI state
   const [loading, setLoading] = useState(false)
@@ -275,7 +276,7 @@ export default function EditAccountScreen() {
         setOriginalAccount(account)
         setName(account.name || "")
         setType(account.type || "savings")
-        setBalance(account.initialBalance?.toString() || "0")
+        setInitialBalance(account.initialBalance?.toString() || "0")
         setColor(account.color || "#1CC29F")
         setIcon(account.icon || "wallet-outline")
       }
@@ -302,11 +303,11 @@ export default function EditAccountScreen() {
     return (
       name !== (originalAccount.name || "") ||
       type !== (originalAccount.type || "savings") ||
-      parseFloat(balance || "0") !== (originalAccount.balance || 0) ||
+      parseFloat(initialBalance || "0") !== (originalAccount.balance || 0) ||
       color !== (originalAccount.color || "#1CC29F") ||
       icon !== (originalAccount.icon || "wallet-outline")
     )
-  }, [name, type, balance, color, icon, originalAccount])
+  }, [name, type, initialBalance, color, icon, originalAccount])
 
   /* handlers */
   const handleSave = useCallback(async () => {
@@ -314,23 +315,27 @@ export default function EditAccountScreen() {
       Alert.alert("Error", "Please enter account name")
       return
     }
-    if (!balance || isNaN(parseFloat(balance))) {
+    if (!initialBalance || isNaN(parseFloat(initialBalance))) {
       Alert.alert("Error", "Please enter a valid balance")
       return
     }
 
     setLoading(true)
     try {
+      const balChange =
+        parseFloat(initialBalance) - parseFloat(originalAccount.initialBalance)
+      const updatedBal = parseFloat(originalAccount.balance || 0) + balChange
       const accountData = {
         name: name.trim(),
         type,
-        intitialBalance: parseFloat(balance),
+        initialBalance: parseFloat(initialBalance),
         color,
         icon,
+        balance: updatedBal,
       }
       console.log("Saving account data:", accountData)
 
-      const result = await accountService.updateAccount(accountId, accountData)
+      const result = await updateAccount(accountId, accountData)
       if (result?.success) {
         Alert.alert("Success", "Account updated successfully!", [
           { text: "OK", onPress: () => router.back() },
@@ -345,7 +350,7 @@ export default function EditAccountScreen() {
       await refreshAccounts() // refresh accounts context
       setLoading(false)
     }
-  }, [name, type, balance, color, icon, accountId])
+  }, [name, type, initialBalance, color, icon, accountId])
 
   const handleDelete = useCallback(async () => {
     if (!originalAccount) return
@@ -396,7 +401,7 @@ export default function EditAccountScreen() {
 
   const handleBalanceChange = useCallback((text) => {
     // lightweight cleaning
-    setBalance(text.replace(/[^\d.]/g, ""))
+    setInitialBalance(text.replace(/[^\d.]/g, ""))
   }, [])
 
   const onSelectColor = useCallback((colorValue) => {
@@ -413,9 +418,14 @@ export default function EditAccountScreen() {
   // Memoized preview card
   const previewCard = useMemo(
     () => (
-      <PreviewCard name={name} balance={balance} color={color} icon={icon} />
+      <PreviewCard
+        name={name}
+        balance={initialBalance}
+        color={color}
+        icon={icon}
+      />
     ),
-    [name, balance, color, icon]
+    [name, initialBalance, color, icon]
   )
 
   // Show loading while fetching account data
@@ -565,7 +575,7 @@ export default function EditAccountScreen() {
                     style={styles.amountInput}
                     placeholder="0.00"
                     placeholderTextColor="#9CA3AF"
-                    value={balance}
+                    value={initialBalance}
                     onChangeText={handleBalanceChange}
                     keyboardType="numeric"
                   />

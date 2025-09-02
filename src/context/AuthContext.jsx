@@ -1,73 +1,220 @@
-import axios from "axios"
-import * as SecureStore from "expo-secure-store"
-import { createContext, useContext, useEffect, useState } from "react"
-import { baseUrl } from "../utility/constant"
+// context/AuthContext.js
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react"
+import { authService } from "../services/api"
+import apiClient from "../services/api/apiClient"
+
 const AuthContext = createContext({})
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   useEffect(() => {
-    checkAuthState()
+    initializeAuth()
   }, [])
 
-  const checkAuthState = async () => {
+  /**
+   * Initialize authentication state on app start
+   */
+  const initializeAuth = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync("userToken")
-      const userData = await SecureStore.getItemAsync("userData")
+      setIsLoading(true)
+      const authData = await authService.getStoredAuthData()
 
-      if (token && userData) {
-        setUser(JSON.parse(userData))
+      if (authData) {
+        setUser(authData.user)
       }
     } catch (error) {
-      console.error("Auth check error:", error)
+      console.error("Auth initialization error:", error)
+      // Clear potentially corrupted data
+      await apiClient.clearAuthData()
+    } finally {
+      setIsLoading(false)
+      setIsInitialized(true)
+    }
+  }, [])
+
+  /**
+   * Setup listener for auth events from apiClient
+   */
+
+  /**
+   * Sign in user
+   */
+  const signIn = useCallback(async (email, password) => {
+    try {
+      setIsLoading(true)
+      const result = await authService.login(email, password)
+      console.log("Result is:: ", result)
+
+      if (result.success) {
+        setUser(result.user)
+      }
+
+      return result
+    } catch (error) {
+      console.error("Sign in error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred during sign in",
+      }
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const signIn = async (email, password) => {
+  /**
+   * Sign up new user
+   */
+  const signUp = useCallback(async (userData) => {
     try {
-      const response = await axios.post(`${baseUrl}/auth/login`, {
-        email,
-        password,
-      })
+      setIsLoading(true)
+      const result = await authService.register(userData)
 
-      const data = response.data
-
-      // Axios only reaches here for 2xx status codes
-      await SecureStore.setItemAsync("userToken", data.token)
-      await SecureStore.setItemAsync("userData", JSON.stringify(data.user))
-      setUser(data.user)
-
-      return { success: true }
-    } catch (error) {
-      if (error.response) {
-        // Server responded with a status outside 2xx
-        return { success: false, error: error.response.data.message }
-      } else {
-        // Network or other error
-        return { success: false, error: "Network error" }
+      if (result.success) {
+        setUser(result.user)
       }
-    }
-  }
 
-  const signOut = async () => {
+      return result
+    } catch (error) {
+      console.error("Sign up error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred during sign up",
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  /**
+   * Sign out user
+   */
+  const signOut = useCallback(async () => {
     try {
-      await SecureStore.deleteItemAsync("userToken")
-      await SecureStore.deleteItemAsync("userData")
+      setIsLoading(true)
+      await authService.logout()
       setUser(null)
     } catch (error) {
       console.error("Sign out error:", error)
+      // Still clear user state even if logout API fails
+      setUser(null)
+    } finally {
+      setIsLoading(false)
     }
-  }
+  }, [])
+
+  /**
+   * Update user profile
+   */
+  const updateProfile = useCallback(async (userData) => {
+    try {
+      const result = await authService.updateProfile(userData)
+
+      if (result.success) {
+        setUser(result.user)
+      }
+
+      return result
+    } catch (error) {
+      console.error("Update profile error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred while updating profile",
+      }
+    }
+  }, [])
+
+  /**
+   * Refresh user data from storage
+   */
+  const refreshUserData = useCallback(async () => {
+    try {
+      const userData = await authService.getStoredUserData()
+      if (userData) {
+        setUser(userData)
+      }
+    } catch (error) {
+      console.error("Refresh user data error:", error)
+    }
+  }, [])
+
+  /**
+   * Change password
+   */
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    try {
+      return await authService.changePassword(currentPassword, newPassword)
+    } catch (error) {
+      console.error("Change password error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred while changing password",
+      }
+    }
+  }, [])
+
+  /**
+   * Forgot password
+   */
+  const forgotPassword = useCallback(async (email) => {
+    try {
+      return await authService.forgotPassword(email)
+    } catch (error) {
+      console.error("Forgot password error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred while processing forgot password",
+      }
+    }
+  }, [])
+
+  /**
+   * Reset password
+   */
+  const resetPassword = useCallback(async (token, newPassword) => {
+    try {
+      return await authService.resetPassword(token, newPassword)
+    } catch (error) {
+      console.error("Reset password error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred while resetting password",
+      }
+    }
+  }, [])
+
+  /**
+   * Check API health
+   */
+  const checkApiHealth = useCallback(async () => {
+    return await apiClient.healthCheck()
+  }, [])
 
   const value = {
+    // State
     user,
     isLoading,
-    signIn,
-    signOut,
+    isInitialized,
     isAuthenticated: !!user,
+
+    // Actions
+    signIn,
+    signUp,
+    signOut,
+    updateProfile,
+    refreshUserData,
+    changePassword,
+    forgotPassword,
+    resetPassword,
+    checkApiHealth,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

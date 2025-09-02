@@ -1,8 +1,8 @@
 // contexts/CategoryContext.js
 import * as SecureStore from "expo-secure-store"
 import { createContext, useContext, useEffect, useReducer } from "react"
+import { useDatabase } from "../database/providers/DatabaseProvider"
 import { categoryService } from "../services/categoryService"
-
 // Initial state
 const initialState = {
   categories: [],
@@ -101,13 +101,15 @@ const CategoryContext = createContext()
 // Provider component
 export const CategoryProvider = ({ children }) => {
   const [state, dispatch] = useReducer(categoryReducer, initialState)
+  const { dbService } = useDatabase()
 
   // Fetch categories from API
   const fetchCategories = async () => {
     dispatch({ type: ACTIONS.SET_LOADING, payload: true })
 
     try {
-      const result = await categoryService.getCategories()
+      const result = await dbService.categories.findAll()
+      console.log("Db categories::", result)
 
       if (result.success) {
         dispatch({ type: ACTIONS.SET_CATEGORIES, payload: result.data })

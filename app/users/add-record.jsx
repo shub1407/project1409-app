@@ -17,10 +17,12 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../src/context/AccountContext"
 import { useCategoryContext } from "../../src/context/CategoryContext"
-import transactionService from "../../src/services/transactionService"
+import { useTransaction } from "../../src/hooks/useTransaction"
 import styles from "../../src/styles/add"
 
 export default function AddTransactionScreen() {
+  const { createTransaction, getTransactions, updateTransaction } =
+    useTransaction()
   const [formData, setFormData] = useState({
     type: "expense",
     description: "",
@@ -220,7 +222,10 @@ export default function AddTransactionScreen() {
       console.log("Transfer data: ", transactionData)
 
       // Call API to save transaction
-      await transactionService.createTransaction(transactionData)
+      //await transactionService.createTransaction(transactionData)
+      //call to local db
+      const result = await createTransaction(transactionData)
+      console.log("Local DB result: ", result)
       // Refresh accounts and reset form
       await refreshAccounts()
       resetForm()
@@ -286,7 +291,7 @@ export default function AddTransactionScreen() {
   const getSelectedToAccount = () =>
     accountOptions.find((acc) => acc.id === formData.toAccount)
   const getSelectedCategory = () =>
-    categories.find((cat) => cat._id === formData.category)
+    categories.find((cat) => cat.id === formData.category)
 
   const getTypeColor = () => getSelectedType()?.color || "#1CC29F"
 
@@ -971,14 +976,14 @@ export default function AddTransactionScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {categories.map((category) => (
                   <TouchableOpacity
-                    key={category._id}
+                    key={category.id}
                     style={[
                       styles.modalOption,
-                      formData.category === category._id &&
+                      formData.category === category.id &&
                         styles.modalOptionActive,
                     ]}
                     onPress={() => {
-                      updateFormData("category", category._id)
+                      updateFormData("category", category.id)
                       setShowCategoryModal(false)
                     }}
                   >
@@ -999,7 +1004,7 @@ export default function AddTransactionScreen() {
                         {category.label}
                       </Text>
                     </View>
-                    {formData.category === category._id && (
+                    {formData.category === category.id && (
                       <Ionicons
                         name="checkmark-circle"
                         size={24}

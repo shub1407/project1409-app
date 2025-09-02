@@ -81,7 +81,7 @@ const TransactionCard = ({ transactions, loading, onViewAll }) => {
         <>
           <View style={styles.transactionsList}>
             {recentTransactions.map((transaction, index) => (
-              <View key={transaction._id} style={styles.transactionItem}>
+              <View key={transaction.id} style={styles.transactionItem}>
                 <TransactionItem
                   transaction={transaction}
                   getTransactionTypeColor={getTransactionTypeColor}

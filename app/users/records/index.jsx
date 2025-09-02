@@ -18,9 +18,10 @@ import FilterModal from "../../../src/components/FilterModal"
 import SummaryCard from "../../../src/components/SummaryCard" // Import the new component
 import TransactionList from "../../../src/components/TransactionList"
 import { useAccountsContext } from "../../../src/context/AccountContext"
-import transactionService from "../../../src/services/transactionService"
+import { useTransaction } from "../../../src/hooks/useTransaction"
 export default function RecordsScreen() {
   const [allTransactions, setAllTransactions] = useState([])
+  const { getTransactions, findAll } = useTransaction()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
@@ -89,8 +90,14 @@ export default function RecordsScreen() {
         }
         lastFetchParams.current = currentParams
 
-        const result = await transactionService.getTransactions(options)
-        const indexed = (result.transactions || []).map((t) => ({
+        // const result = await transactionService.getTransactions(options)
+
+        const result = await getTransactions(options) // Use local db hook
+        const all = await findAll()
+        //console.log("Fetched transaction:: ", all)
+        console.log("With filters all:", result.data.transactions)
+
+        const indexed = (result.data.transactions || []).map((t) => ({
           ...t,
           _searchString: `${t.description || ""} ${t.note || ""} ${
             accounts.find((a) => a.id === t.accountId)?.name || ""

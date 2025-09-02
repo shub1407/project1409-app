@@ -15,13 +15,12 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useCategoryContext } from "../../../src/context/CategoryContext"
-import transactionService from "../../../src/services/transactionService"
+import { useTransaction } from "../../../src/hooks/useTransaction"
 import styles from "../../../src/styles/add"
-
 export default function EditTransactionScreen() {
   const { transactionId } = useLocalSearchParams()
   console.log("Transaction inside edit-record:: ", transactionId)
-
+  const { getTransactionById } = useTransaction()
   const [formData, setFormData] = useState({
     type: "expense",
     description: "",
@@ -44,6 +43,7 @@ export default function EditTransactionScreen() {
     loading: categoriesLoading,
     error: categoriesError,
   } = useCategoryContext()
+  const { updateTransaction, deleteTransaction } = useTransaction()
 
   const {
     accounts,
@@ -71,19 +71,17 @@ export default function EditTransactionScreen() {
 
       try {
         setInitialLoading(true)
-        const result = await transactionService.getTransactionById(
-          transactionId
-        )
+        const result = await getTransactionById(transactionId)
 
         if (result.success && result.data) {
-          const transaction = result.data.transaction
+          const transaction = result.data
           console.log("Loaded transaction is: ", transaction)
           setOriginalTransaction(transaction)
           setFormData({
             type: transaction.type || "expense",
             description: transaction.description || "",
             amount: transaction.amount?.toString() || "",
-            fromAccount: transaction.accountId._id || "",
+            fromAccount: transaction.accountId || "",
             toAccount: transaction.toAccountId || "",
             category: transaction.categoryId || "",
             date:
@@ -227,10 +225,11 @@ export default function EditTransactionScreen() {
       }
 
       // Call API to update transaction
-      const result = await transactionService.updateTransaction(
-        transactionId,
-        transactionData
-      )
+      //const result = await transactionService.updateTransaction(
+      //   transactionId,
+      //   transactionData
+      // )
+      const result = await updateTransaction(transactionId, transactionData)
 
       if (result.success) {
         // Refresh accounts
@@ -255,7 +254,8 @@ export default function EditTransactionScreen() {
   const handleDelete = useCallback(async () => {
     setDeleteLoading(true)
     try {
-      const result = await transactionService.deleteTransaction(transactionId)
+      //const result = await transactionService.deleteTransaction(transactionId)
+      const result = await deleteTransaction(transactionId)
 
       if (result.success) {
         // Refresh accounts
@@ -322,7 +322,7 @@ export default function EditTransactionScreen() {
   const getSelectedToAccount = () =>
     accountOptions.find((acc) => acc.id === formData.toAccount)
   const getSelectedCategory = () =>
-    categories.find((cat) => cat._id === formData.category)
+    categories.find((cat) => cat.id === formData.category)
 
   const getTypeColor = () => getSelectedType()?.color || "#1CC29F"
 
@@ -1021,14 +1021,14 @@ export default function EditTransactionScreen() {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {categories.map((category) => (
                   <TouchableOpacity
-                    key={category._id}
+                    key={category.id}
                     style={[
                       styles.modalOption,
-                      formData.category === category._id &&
+                      formData.category === category.id &&
                         styles.modalOptionActive,
                     ]}
                     onPress={() => {
-                      updateFormData("category", category._id)
+                      updateFormData("category", category.id)
                       setShowCategoryModal(false)
                     }}
                   >
@@ -1049,7 +1049,7 @@ export default function EditTransactionScreen() {
                         {category.label}
                       </Text>
                     </View>
-                    {formData.category === category._id && (
+                    {formData.category === category.id && (
                       <Ionicons
                         name="checkmark-circle"
                         size={24}

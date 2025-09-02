@@ -16,7 +16,7 @@ import {
   View,
 } from "react-native"
 import { useAuth } from "../../src/context/AuthContext"
-
+import { Logger } from "../../src/utility/logger"
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 export default function LoginScreen() {
@@ -33,6 +33,7 @@ export default function LoginScreen() {
       Alert.alert("Error", "Please fill in all fields")
       return
     }
+    Logger.info(`Mode is:: Dev:${__DEV__} `)
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

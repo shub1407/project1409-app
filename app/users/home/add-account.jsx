@@ -17,7 +17,6 @@ import {
   View,
 } from "react-native"
 import { useAccountsContext } from "../../../src/context/AccountContext" // adjust path if needed
-import { accountService } from "../../../src/services/accountService" // adjust path if needed
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 /* -------------------------
@@ -251,6 +250,7 @@ export default function AddAccountScreen() {
   const [loading, setLoading] = useState(false)
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
   const [showColorDropdown, setShowColorDropdown] = useState(false)
+  const { createAccount } = useAccountsContext()
 
   // memoized selected lookups
   const selectedType = useMemo(
@@ -294,8 +294,9 @@ export default function AddAccountScreen() {
         balance: parseFloat(balance),
         color,
         icon,
+        initialBalance: parseFloat(balance),
       }
-      const result = await accountService.createAccount(accountData)
+      const result = await createAccount(accountData)
       if (result?.success) {
         Alert.alert("Success", "Account created successfully!", [
           {

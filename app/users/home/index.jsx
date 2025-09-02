@@ -16,7 +16,7 @@ import ListOfAccounts from "../../../src/components/ListOfAccounts"
 import TransactionCard from "../../../src/components/TransactionCard"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useAuth } from "../../../src/context/AuthContext"
-import transactionService from "../../../src/services/transactionService"
+import { useTransaction } from "../../../src/hooks/useTransaction"
 
 const { width: screenWidth } = Dimensions.get("window")
 const HEADER_HEIGHT = 180 // Height of your header
@@ -28,6 +28,7 @@ export default function AccountsScreen() {
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const { user } = useAuth()
   const { accounts, refreshAccounts, loading } = useAccountsContext()
+  const { getTransactions } = useTransaction()
 
   // Animated value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current
@@ -50,10 +51,11 @@ export default function AccountsScreen() {
   const loadTransactions = async () => {
     try {
       setTransactionsLoading(true)
-      const result = await transactionService.getTransactions({ limit: 4 })
-      if (result) {
-        console.log("Loaded transaction:: ", result.transactions.length)
-        setTransactions(result.transactions)
+      const result = await getTransactions({ limit: 5 })
+      if (result.success) {
+        const transactions = result?.data?.transactions
+        console.log("Loaded transaction:: ", transactions)
+        setTransactions(transactions || [])
       }
     } catch (error) {
       console.error("Error loading transactions:", error)

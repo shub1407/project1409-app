@@ -33,8 +33,8 @@ const TransactionItem = ({
   }
 
   const getTransferDisplay = () => {
-    const fromAccount = transaction.accountId.name
-    const toAccount = transaction.toAccountId.name
+    const fromAccount = transaction.accountName
+    const toAccount = transaction.toAccountName
     return `${fromAccount} → ${toAccount}`
   }
 
@@ -57,7 +57,7 @@ const TransactionItem = ({
         console.log("Transaction tapped:", transaction)
         router.push({
           pathname: "/users/records/edit-record",
-          params: { transactionId: transaction._id },
+          params: { transactionId: transaction.id },
         })
       }}
       activeOpacity={0.7}
@@ -69,7 +69,7 @@ const TransactionItem = ({
           <Ionicons
             name={
               transaction.categoryId
-                ? transaction.categoryId.icon
+                ? transaction.categoryIcon
                 : "swap-horizontal"
             }
             size={18}
@@ -80,7 +80,7 @@ const TransactionItem = ({
         <View style={styles.details}>
           <View style={styles.topRow}>
             <Text style={styles.category} numberOfLines={1}>
-              {transaction?.categoryId?.label || "Transfer"}
+              {transaction?.categoryLabel || "Transfer"}
             </Text>
           </View>
 
@@ -92,7 +92,7 @@ const TransactionItem = ({
             <Text style={styles.accountInfo} numberOfLines={1}>
               {transaction.type === "transfer"
                 ? getTransferDisplay()
-                : transaction.accountId.name}
+                : transaction.accountName}
             </Text>
 
             {/* Balance Pills - Only show if values exist */}
