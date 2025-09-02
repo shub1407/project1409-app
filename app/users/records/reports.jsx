@@ -1,7 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
 import { router, useNavigation } from "expo-router"
-import * as SecureStore from "expo-secure-store"
 import { useEffect, useState } from "react"
 import {
   ActivityIndicator,
@@ -19,13 +18,20 @@ import {
 import { PieChart } from "react-native-chart-kit"
 import TransactionList from "../../../src/components/TransactionList"
 import { useAccountsContext } from "../../../src/context/AccountContext"
-import { baseUrl } from "../../../src/utility/constant"
+import { useReports } from "../../../src/hooks/useReports"
+import { useTransaction } from "../../../src/hooks/useTransaction"
+
 const screenWidth = Dimensions.get("window").width
 
 const ReportsScreen = () => {
+  // Database and contexts
+
+  const { accounts } = useAccountsContext()
+  const navigation = useNavigation()
+
+  // State management
   const [reportData, setReportData] = useState(null)
   const [transactions, setTransactions] = useState([])
-  const [loading, setLoading] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [activeTab, setActiveTab] = useState("expense")
   const [filterType, setFilterType] = useState("month")
@@ -40,364 +46,23 @@ const ReportsScreen = () => {
   const [showFiltersModal, setShowFiltersModal] = useState(false)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [showWeekPicker, setShowWeekPicker] = useState(false)
-  const { accounts } = useAccountsContext()
-  const navigation = useNavigation()
-  // Updated chart colors matching your app theme
-  const chartColors = [
-    "#1CC29F", // Primary app color
-    "#10B981", // Success green
-    "#EF4444", // Error red
-    "#F59E0B", // Warning amber
-    "#8B5CF6", // Purple
-    "#06B6D4", // Cyan
-    "#EC4899", // Pink
-    "#84CC16", // Lime
-    "#F97316", // Orange
-    "#6366F1", // Indigo
-  ]
 
-  const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-  ]
+  // Hooks
+  const {
+    loading,
+    error,
+    generateSpendingByCategory,
+    generateMonthlyReport,
+    generateIncomeVsExpense,
+    generateAccountBalanceTrends,
+    generateCashFlowAnalysis,
+  } = useReports()
 
-  const currentYear = new Date().getFullYear()
-  const currentMonth = new Date().getMonth()
-
-  // Only show past and current years (remove future years)
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i).filter(
-    (year) => year <= currentYear
-  )
-
-  useEffect(() => {
-    fetchReportData()
-  }, [
-    filterType,
-    selectedYear,
-    selectedMonth,
-    selectedWeek,
-    selectedAccountId,
-    customStartDate,
-    customEndDate,
-    activeTab,
-  ])
-
-  const getWeeksInMonth = (year, month) => {
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const today = new Date()
-    const weeks = []
-
-    let weekStart = new Date(firstDay)
-    let weekNumber = 1
-
-    while (weekStart <= lastDay) {
-      let weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 6)
-
-      if (weekEnd > lastDay) {
-        weekEnd = new Date(lastDay)
-      }
-
-      // Only add weeks that are not entirely in the future
-      if (weekStart <= today) {
-        weeks.push({
-          number: weekNumber,
-          start: new Date(weekStart),
-          end: new Date(weekEnd),
-          label: `Week ${weekNumber} (${weekStart.getDate()}-${weekEnd.getDate()})`,
-        })
-      }
-
-      weekStart.setDate(weekStart.getDate() + 7)
-      weekNumber++
-    }
-
-    return weeks
-  }
-
-  const getDateRange = () => {
-    if (filterType === "custom") {
-      return {
-        startDate: customStartDate.toISOString().split("T")[0],
-        endDate: customEndDate.toISOString().split("T")[0],
-      }
-    }
-
-    if (filterType === "week") {
-      const weeks = getWeeksInMonth(selectedYear, selectedMonth)
-      const selectedWeekData = weeks[selectedWeek - 1]
-
-      if (selectedWeekData) {
-        return {
-          startDate: selectedWeekData.start.toISOString().split("T")[0],
-          endDate: selectedWeekData.end.toISOString().split("T")[0],
-        }
-      }
-    }
-
-    const startDate = new Date(selectedYear, selectedMonth, 1)
-    const endDate = new Date(selectedYear, selectedMonth + 1, 0)
-
-    return {
-      startDate: startDate.toISOString().split("T")[0],
-      endDate: endDate.toISOString().split("T")[0],
-    }
-  }
-
-  const getDisplayPeriod = () => {
-    const { startDate, endDate } = getDateRange()
-
-    if (filterType === "custom") {
-      return `${new Date(startDate).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })} - ${new Date(endDate).toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })}`
-    }
-
-    if (filterType === "week") {
-      const weeks = getWeeksInMonth(selectedYear, selectedMonth)
-      const selectedWeekData = weeks[selectedWeek - 1]
-      return `${months[selectedMonth]} ${selectedYear} - ${
-        selectedWeekData?.label || "Week 1"
-      }`
-    }
-
-    return `${months[selectedMonth]} ${selectedYear}`
-  }
-
-  const getSelectedAccountName = () => {
-    if (!selectedAccountId) return "All Accounts"
-    const account = accounts.find((acc) => acc.id === selectedAccountId)
-    return account?.name || "All Accounts"
-  }
-
-  const clearAllFilters = () => {
-    const now = new Date()
-    setSelectedAccountId("")
-    setActiveTab("expense")
-    setFilterType("month")
-    setSelectedYear(now.getFullYear())
-    setSelectedMonth(now.getMonth())
-    setSelectedWeek(1)
-    setCustomStartDate(now)
-    setCustomEndDate(now)
-  }
-
-  const hasActiveFilters = () => {
-    const now = new Date()
-    return (
-      selectedAccountId ||
-      filterType !== "month" ||
-      selectedYear !== now.getFullYear() ||
-      selectedMonth !== now.getMonth()
-    )
-  }
-
-  const fetchReportData = async () => {
-    setLoading(true)
-    try {
-      const { startDate, endDate } = getDateRange()
-      const token = await SecureStore.getItemAsync("userToken")
-
-      const queryParams = new URLSearchParams({
-        type: activeTab,
-        limit: "10",
-        ...(startDate && endDate && { startDate, endDate }),
-        ...(selectedAccountId && { accountId: selectedAccountId }),
-      })
-
-      const response = await fetch(
-        `${baseUrl}/reports/top-categories?${queryParams}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        setReportData(data)
-      } else {
-        Alert.alert("Error", "Failed to fetch report data")
-      }
-    } catch (error) {
-      console.error("Error fetching report data:", error)
-      Alert.alert("Error", "Network error occurred")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchCategoryTransactions = async (categoryId) => {
-    try {
-      const { startDate, endDate } = getDateRange()
-      const token = await SecureStore.getItemAsync("userToken")
-
-      const queryParams = new URLSearchParams({
-        categoryId,
-        type: activeTab,
-        ...(startDate && endDate && { startDate, endDate }),
-        ...(selectedAccountId && { accountId: selectedAccountId }),
-      })
-
-      const response = await fetch(`${baseUrl}/transactions?${queryParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setTransactions(data.transactions || [])
-      }
-    } catch (error) {
-      console.error("Error fetching category transactions:", error)
-    }
-  }
-
-  const handleCategoryClick = (categoryId) => {
-    setSelectedCategory(categoryId)
-    fetchCategoryTransactions(categoryId)
-  }
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      minimumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  const getPieChartData = () => {
-    if (!reportData?.topCategories) return []
-
-    const total = reportData.topCategories.reduce(
-      (sum, cat) => sum + cat.total,
-      0
-    )
-
-    return reportData.topCategories.map((category, index) => ({
-      name: category.categoryInfo?.label || "Unknown",
-      population: category.total,
-      color: chartColors[index % chartColors.length],
-      legendFontColor: "#374151",
-      legendFontSize: 12,
-      percentage: ((category.total / total) * 100).toFixed(1),
-    }))
-  }
-
-  const navigateMonth = (direction) => {
-    if (direction === "next") {
-      if (selectedMonth === 11) {
-        if (selectedYear < currentYear) {
-          setSelectedYear(selectedYear + 1)
-          setSelectedMonth(0)
-        }
-      } else if (
-        selectedYear < currentYear ||
-        (selectedYear === currentYear && selectedMonth < currentMonth)
-      ) {
-        setSelectedMonth(selectedMonth + 1)
-      }
-    } else {
-      if (selectedMonth === 0) {
-        if (selectedYear > years[0]) {
-          setSelectedYear(selectedYear - 1)
-          setSelectedMonth(11)
-        }
-      } else {
-        setSelectedMonth(selectedMonth - 1)
-      }
-    }
-  }
-
-  const onDateChange = (event, date, type) => {
-    if (type === "start") {
-      setShowStartDatePicker(false)
-      if (date && date <= new Date()) {
-        setCustomStartDate(date)
-        setTimeout(() => setShowEndDatePicker(true), 100)
-      }
-    } else if (type === "end") {
-      setShowEndDatePicker(false)
-      if (date && date <= new Date() && date >= customStartDate) {
-        setCustomEndDate(date)
-      }
-    }
-  }
-
-  const renderHeader = () => (
-    <>
-      <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
-      <SafeAreaView style={styles.headerContainer}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.push("/users/records")}
-          >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Detailed Reports</Text>
-          <TouchableOpacity
-            style={styles.filterButton}
-            onPress={() => setShowFiltersModal(true)}
-          >
-            <Ionicons name="options" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </>
-  )
-
-  const renderCurrentFilters = () => {
-    if (!hasActiveFilters()) return null
-
-    return (
-      <View style={styles.currentFiltersContainer}>
-        <View style={styles.filtersHeader}>
-          <Text style={styles.currentFiltersTitle}>Active Filters:</Text>
-          <TouchableOpacity
-            style={styles.clearFiltersButton}
-            onPress={clearAllFilters}
-          >
-            <Ionicons name="close-circle" size={16} color="#EF4444" />
-            <Text style={styles.clearFiltersText}>Clear All</Text>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.filterChips}>
-          {selectedAccountId && (
-            <View style={styles.filterChip}>
-              <Text style={styles.filterChipText}>
-                {getSelectedAccountName()}
-              </Text>
-            </View>
-          )}
-          <View style={styles.filterChip}>
-            <Text style={styles.filterChipText}>{getDisplayPeriod()}</Text>
-          </View>
-        </View>
-      </View>
-    )
-  }
+  const {
+    loading: transactionsLoading,
+    getTransactions: fetchCategoryTransactions,
+  } = useTransaction()
+  // Add these functions inside your ReportsScreen component:
 
   const renderFiltersModal = () => (
     <Modal visible={showFiltersModal} transparent animationType="slide">
@@ -769,6 +434,417 @@ const ReportsScreen = () => {
       </View>
     </Modal>
   )
+  const renderHeader = () => (
+    <>
+      <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
+      <SafeAreaView style={styles.headerContainer}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push("/users/records")}
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Detailed Reports</Text>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setShowFiltersModal(true)}
+          >
+            <Ionicons name="options" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </>
+  )
+
+  // Chart colors matching your app theme
+  const chartColors = [
+    "#1CC29F",
+    "#10B981",
+    "#EF4444",
+    "#F59E0B",
+    "#8B5CF6",
+    "#06B6D4",
+    "#EC4899",
+    "#84CC16",
+    "#F97316",
+    "#6366F1",
+  ]
+
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ]
+
+  const currentYear = new Date().getFullYear()
+  const currentMonth = new Date().getMonth()
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - 4 + i).filter(
+    (year) => year <= currentYear
+  )
+
+  // Get date range based on filter type
+  const getDateRange = () => {
+    if (filterType === "custom") {
+      return {
+        startDate: customStartDate.toISOString(),
+        endDate: customEndDate.toISOString(),
+      }
+    }
+
+    if (filterType === "week") {
+      const weeks = getWeeksInMonth(selectedYear, selectedMonth)
+      const selectedWeekData = weeks[selectedWeek - 1]
+
+      if (selectedWeekData) {
+        return {
+          startDate: selectedWeekData.start.toISOString(),
+          endDate: selectedWeekData.end.toISOString(),
+        }
+      }
+    }
+
+    const startDate = new Date(selectedYear, selectedMonth, 1)
+    const endDate = new Date(selectedYear, selectedMonth + 1, 0)
+
+    return {
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+    }
+  }
+
+  const getDisplayPeriod = () => {
+    const { startDate, endDate } = getDateRange()
+
+    if (filterType === "custom") {
+      return `${new Date(startDate).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })} - ${new Date(endDate).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })}`
+    }
+
+    if (filterType === "week") {
+      const weeks = getWeeksInMonth(selectedYear, selectedMonth)
+      const selectedWeekData = weeks[selectedWeek - 1]
+      return `${months[selectedMonth]} ${selectedYear} - ${
+        selectedWeekData?.label || "Week 1"
+      }`
+    }
+
+    return `${months[selectedMonth]} ${selectedYear}`
+  }
+
+  const getWeeksInMonth = (year, month) => {
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const today = new Date()
+    const weeks = []
+
+    let weekStart = new Date(firstDay)
+    let weekNumber = 1
+
+    while (weekStart <= lastDay) {
+      let weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+
+      if (weekEnd > lastDay) {
+        weekEnd = new Date(lastDay)
+      }
+
+      if (weekStart <= today) {
+        weeks.push({
+          number: weekNumber,
+          start: new Date(weekStart),
+          end: new Date(weekEnd),
+          label: `Week ${weekNumber} (${weekStart.getDate()}-${weekEnd.getDate()})`,
+        })
+      }
+
+      weekStart.setDate(weekStart.getDate() + 7)
+      weekNumber++
+    }
+
+    return weeks
+  }
+
+  const getSelectedAccountName = () => {
+    if (!selectedAccountId) return "All Accounts"
+    const account = accounts.find((acc) => acc.id === selectedAccountId)
+    return account?.name || "All Accounts"
+  }
+
+  const clearAllFilters = () => {
+    const now = new Date()
+    setSelectedAccountId("")
+    setActiveTab("expense")
+    setFilterType("month")
+    setSelectedYear(now.getFullYear())
+    setSelectedMonth(now.getMonth())
+    setSelectedWeek(1)
+    setCustomStartDate(now)
+    setCustomEndDate(now)
+  }
+
+  const hasActiveFilters = () => {
+    const now = new Date()
+    return (
+      selectedAccountId ||
+      filterType !== "month" ||
+      selectedYear !== now.getFullYear() ||
+      selectedMonth !== now.getMonth()
+    )
+  }
+
+  // Fetch report data using offline-first hooks
+  const fetchReportData = async () => {
+    try {
+      const { startDate, endDate } = getDateRange()
+
+      // Generate spending by category report
+      const spendingResult = await generateSpendingByCategory(
+        startDate,
+        endDate,
+        activeTab,
+        selectedAccountId || null
+      )
+
+      if (spendingResult.success) {
+        // Transform data to match the expected format
+        const topCategories = spendingResult.data.map((category) => ({
+          _id: category.categoryId,
+          total: parseFloat(category.totalAmount),
+          count: category.transactionCount,
+          categoryInfo: {
+            label: category.categoryName,
+            color: category.categoryColor,
+            icon: category.categoryIcon,
+          },
+        }))
+
+        // Generate cash flow summary
+        const cashFlowResult = await generateCashFlowAnalysis({
+          startDate,
+          endDate,
+          groupBy: "month",
+          accountId: selectedAccountId || null,
+        })
+
+        let cashFlowSummary = null
+        if (cashFlowResult.success && cashFlowResult.data.length > 0) {
+          const latestPeriod =
+            cashFlowResult.data[cashFlowResult.data.length - 1]
+          cashFlowSummary = {
+            totalIncome: parseFloat(latestPeriod.cashInflow),
+            totalExpense: parseFloat(latestPeriod.cashOutflow),
+            netCashFlow: parseFloat(latestPeriod.netCashFlow),
+            savingsRate:
+              latestPeriod.cashInflow > 0
+                ? (
+                    ((latestPeriod.cashInflow - latestPeriod.cashOutflow) /
+                      latestPeriod.cashInflow) *
+                    100
+                  ).toFixed(1)
+                : 0,
+          }
+        }
+
+        setReportData({
+          topCategories,
+          cashFlowSummary,
+        })
+      } else {
+        console.warn("Failed to fetch spending data:", spendingResult.error)
+        setReportData({ topCategories: [], cashFlowSummary: null })
+      }
+    } catch (error) {
+      console.error("Error fetching report data:", error)
+      Alert.alert("Error", "Failed to load report data")
+      setReportData({ topCategories: [], cashFlowSummary: null })
+    }
+  }
+
+  // Fetch category transactions using offline-first hook
+  const handleCategoryClick = async (categoryId) => {
+    setSelectedCategory(categoryId)
+    const { startDate, endDate } = getDateRange()
+
+    try {
+      const result = await fetchCategoryTransactions({
+        categoryId,
+        type: activeTab,
+        startDate,
+        endDate,
+        accountId: selectedAccountId || null,
+      })
+
+      if (result && result.success) {
+        setTransactions(result.data.transactions || [])
+      } else {
+        setTransactions([])
+      }
+    } catch (error) {
+      console.error("Error fetching category transactions:", error)
+      setTransactions([])
+    }
+  }
+
+  // Effects
+  useEffect(() => {
+    fetchReportData()
+  }, [
+    filterType,
+    selectedYear,
+    selectedMonth,
+    selectedWeek,
+    selectedAccountId,
+    customStartDate,
+    customEndDate,
+    activeTab,
+  ])
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      minimumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  const getPieChartData = () => {
+    if (!reportData?.topCategories) return []
+
+    const total = reportData.topCategories.reduce(
+      (sum, cat) => sum + cat.total,
+      0
+    )
+
+    return reportData.topCategories.map((category, index) => ({
+      name: category.categoryInfo?.label || "Unknown",
+      population: category.total,
+      color: chartColors[index % chartColors.length],
+      legendFontColor: "#374151",
+      legendFontSize: 12,
+      percentage: ((category.total / total) * 100).toFixed(1),
+    }))
+  }
+
+  const navigateMonth = (direction) => {
+    if (direction === "next") {
+      if (selectedMonth === 11) {
+        if (selectedYear < currentYear) {
+          setSelectedYear(selectedYear + 1)
+          setSelectedMonth(0)
+        }
+      } else if (
+        selectedYear < currentYear ||
+        (selectedYear === currentYear && selectedMonth < currentMonth)
+      ) {
+        setSelectedMonth(selectedMonth + 1)
+      }
+    } else {
+      if (selectedMonth === 0) {
+        if (selectedYear > years[0]) {
+          setSelectedYear(selectedYear - 1)
+          setSelectedMonth(11)
+        }
+      } else {
+        setSelectedMonth(selectedMonth - 1)
+      }
+    }
+  }
+
+  const onDateChange = (event, date, type) => {
+    if (type === "start") {
+      setShowStartDatePicker(false)
+      if (date && date <= new Date()) {
+        setCustomStartDate(date)
+        setTimeout(() => setShowEndDatePicker(true), 100)
+      }
+    } else if (type === "end") {
+      setShowEndDatePicker(false)
+      if (date && date <= new Date() && date >= customStartDate) {
+        setCustomEndDate(date)
+      }
+    }
+  }
+
+  // Show loading state
+  if (loading && !reportData) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#1CC29F" />
+          <Text style={styles.loadingText}>Loading insights...</Text>
+        </View>
+      </View>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color="#EF4444" />
+          <Text style={styles.errorText}>Failed to load reports</Text>
+          <Text style={styles.errorSubtext}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchReportData}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
+
+  const renderCurrentFilters = () => {
+    if (!hasActiveFilters()) return null
+
+    return (
+      <View style={styles.currentFiltersContainer}>
+        <View style={styles.filtersHeader}>
+          <Text style={styles.currentFiltersTitle}>Active Filters:</Text>
+          <TouchableOpacity
+            style={styles.clearFiltersButton}
+            onPress={clearAllFilters}
+          >
+            <Ionicons name="close-circle" size={16} color="#EF4444" />
+            <Text style={styles.clearFiltersText}>Clear All</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.filterChips}>
+          {selectedAccountId && (
+            <View style={styles.filterChip}>
+              <Text style={styles.filterChipText}>
+                {getSelectedAccountName()}
+              </Text>
+            </View>
+          )}
+          <View style={styles.filterChip}>
+            <Text style={styles.filterChipText}>{getDisplayPeriod()}</Text>
+          </View>
+        </View>
+      </View>
+    )
+  }
 
   const renderCashFlowSummary = () => {
     if (!reportData?.cashFlowSummary) return null
@@ -1017,13 +1093,15 @@ const ReportsScreen = () => {
         <TransactionList
           transactions={transactions}
           accounts={accounts}
-          onTransactionUpdate={() =>
-            fetchCategoryTransactions(selectedCategory)
-          }
+          loading={transactionsLoading}
+          onTransactionUpdate={() => handleCategoryClick(selectedCategory)}
         />
       </View>
     )
   }
+
+  // Keep all the existing modal rendering functions (renderFiltersModal, renderMonthYearPickerModal, renderWeekPickerModal)
+  // ... (same as in your original code)
 
   if (selectedCategory) {
     return renderTransactionModal()
@@ -1267,6 +1345,38 @@ const styles = StyleSheet.create({
   },
   selectedChipText: {
     color: "#FFFFFF",
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#EF4444",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: "#1CC29F",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 
   // Period Buttons

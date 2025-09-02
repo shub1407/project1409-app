@@ -16,4 +16,7 @@ export class DatabaseService {
   get transactions() {
     return this.repositoryFactory.getTransactionRepository()
   }
+  get report() {
+    return this.repositoryFactory.getReportRepository()
+  }
 }
