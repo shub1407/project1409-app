@@ -1,10 +1,10 @@
 // utils/caseMapper.js
 
-function camelizeKey(key) {
+export function camelizeKey(key) {
   return key.replace(/_([a-z])/g, (_, char) => char.toUpperCase())
 }
 
-function snakifyKey(key) {
+export function snakifyKey(key) {
   return key.replace(/([A-Z])/g, "_$1").toLowerCase()
 }
 

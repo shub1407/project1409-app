@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -13,28 +13,47 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { useScheduledTransactionContext } from "../../../../src/context/ScheduledTransactionContext"
+import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
 
 export default function ScheduledTransactionsScreen() {
+  // const {
+  //   //stats = {},
+  //   //loading,
+  //   toggleTransactionStatus,
+  //   //deleteScheduledTransaction,
+  //   refreshData,
+  // } = useScheduledTransactionContext()
+
   const {
-    scheduledTransactions,
-    stats,
     loading,
-    toggleTransactionStatus,
+    stats = {},
+    scheduledTransactions = [],
+    loading: hooksLoading,
+    toggleScheduledTransactionStatus,
     deleteScheduledTransaction,
     refreshData,
-    fetchScheduledTransactions,
-  } = useScheduledTransactionContext()
+  } = useScheduledTransaction()
 
   const [refreshing, setRefreshing] = useState(false)
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      if (!hooksLoading) {
+        console.log("fetched stats from hooks:: ", stats)
+
+        console.log("from api:: ", scheduledTransactions)
+      }
       refreshData()
     }, [])
   )
+  useEffect(() => {
+    if (!hooksLoading) {
+      console.log("fetched stats from hooks:: ", stats)
 
+      console.log("from api:: ", scheduledTransactions)
+    }
+  }, [hooksLoading])
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
@@ -51,11 +70,21 @@ export default function ScheduledTransactionsScreen() {
       style: "currency",
       currency: "INR",
       minimumFractionDigits: 0,
-    }).format(amount)
+    }).format(amount || 0)
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-IN", {
+    if (!dateString) return "N/A"
+
+    // Handle timestamp (number) or date string
+    const date =
+      typeof dateString === "number"
+        ? new Date(dateString)
+        : new Date(dateString)
+
+    if (isNaN(date.getTime())) return "Invalid Date"
+
+    return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -63,7 +92,7 @@ export default function ScheduledTransactionsScreen() {
   }
 
   const getFrequencyIcon = (frequency) => {
-    switch (frequency) {
+    switch (frequency?.toLowerCase()) {
       case "daily":
         return "today-outline"
       case "weekly":
@@ -81,7 +110,8 @@ export default function ScheduledTransactionsScreen() {
 
   const toggleTransaction = async (id) => {
     try {
-      await toggleTransactionStatus(id)
+      await toggleScheduledTransactionStatus(id)
+      refreshData()
     } catch (error) {
       console.error("Error toggling transaction:", error)
       const errorMessage =
@@ -93,7 +123,9 @@ export default function ScheduledTransactionsScreen() {
   const deleteTransaction = (transaction) => {
     Alert.alert(
       "Delete Scheduled Transaction",
-      `Are you sure you want to delete "${transaction.name}"?`,
+      `Are you sure you want to delete "${
+        transaction?.name || "this transaction"
+      }"?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -101,7 +133,8 @@ export default function ScheduledTransactionsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await deleteScheduledTransaction(transaction._id)
+              await deleteScheduledTransaction(transaction.id)
+              refreshData()
             } catch (error) {
               console.error("Error deleting transaction:", error)
               const errorMessage =
@@ -116,134 +149,151 @@ export default function ScheduledTransactionsScreen() {
 
   const handleEditTransaction = (transaction) => {
     router.push({
-      pathname: `/users/profile/schedule-payment/${transaction._id}`,
+      pathname: `/users/profile/schedule-payment/${transaction.id}`,
     })
   }
 
   const getStatusColor = (transaction) => {
-    if (transaction.status === "paused") return "#F59E0B"
-    if (transaction.isOverdue) return "#EF4444"
-    return transaction.type === "income" ? "#10B981" : "#EF4444"
+    if (transaction?.isActive === 0) return "#F59E0B"
+    if (transaction?.isOverdue) return "#EF4444"
+    return transaction?.type === "income" ? "#10B981" : "#EF4444"
   }
 
-  const renderTransaction = (transaction) => (
-    <TouchableOpacity
-      key={transaction._id}
-      style={[
-        styles.transactionItem,
-        transaction.status === "paused" && styles.transactionItemPaused,
-      ]}
-      onPress={() => handleEditTransaction(transaction)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.transactionLeft}>
-        <View
-          style={[
-            styles.transactionIcon,
-            {
-              backgroundColor:
-                transaction.type === "income" ? "#D1FAE5" : "#FEE2E2",
-            },
-          ]}
-        >
-          <Ionicons
-            name={
-              transaction.type === "income" ? "trending-up" : "trending-down"
-            }
-            size={20}
-            color={transaction.type === "income" ? "#10B981" : "#EF4444"}
-          />
-        </View>
-        <View style={styles.transactionDetails}>
-          <Text style={styles.transactionTitle}>{transaction.name}</Text>
-          <Text style={styles.transactionCategory}>
-            {transaction.categoryId?.label || "No category"} •{" "}
-            {transaction.fromAccountId?.name || "Unknown account"}
-          </Text>
-          <View style={styles.scheduleInfo}>
+  const isOverdue = (transaction) => {
+    if (!transaction?.nextRunDate) return false
+    const nextRun =
+      typeof transaction.nextRunDate === "number"
+        ? transaction.nextRunDate
+        : new Date(transaction.nextRunDate).getTime()
+    return nextRun < Date.now() && transaction?.isActive
+  }
+
+  const renderTransaction = (transaction) => {
+    if (!transaction?.id) return null
+
+    const transactionIsOverdue = isOverdue(transaction)
+
+    return (
+      <TouchableOpacity
+        key={transaction.id}
+        style={[
+          styles.transactionItem,
+          transaction.isActive === 0 && styles.transactionItemPaused,
+        ]}
+        onPress={() => handleEditTransaction(transaction)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.transactionLeft}>
+          <View
+            style={[
+              styles.transactionIcon,
+              {
+                backgroundColor:
+                  transaction.type === "income" ? "#D1FAE5" : "#FEE2E2",
+              },
+            ]}
+          >
             <Ionicons
-              name={getFrequencyIcon(transaction.frequency)}
-              size={12}
-              color="#6B7280"
+              name={
+                transaction.type === "income" ? "trending-up" : "trending-down"
+              }
+              size={20}
+              color={transaction.type === "income" ? "#10B981" : "#EF4444"}
             />
-            <Text style={styles.frequencyText}>
-              {transaction.frequency} • Next:{" "}
-              {formatDate(transaction.nextDueDate)}
-            </Text>
           </View>
-          {/* Show execution count for recurring transactions */}
-          {transaction.executionCount > 0 && (
-            <Text style={styles.executionCount}>
-              Executed {transaction.executionCount} time
-              {transaction.executionCount !== 1 ? "s" : ""}
+          <View style={styles.transactionDetails}>
+            <Text style={styles.transactionTitle}>
+              {transaction.name || "Unnamed Transaction"}
             </Text>
-          )}
+            <Text style={styles.transactionCategory}>
+              {transaction.categoryLabel || "No category"} •{" "}
+              {transaction.accountName || "Unknown account"}
+            </Text>
+            <View style={styles.scheduleInfo}>
+              <Ionicons
+                name={getFrequencyIcon(transaction.frequency)}
+                size={12}
+                color="#6B7280"
+              />
+              <Text style={styles.frequencyText}>
+                {transaction.frequency || "Unknown"} • Next:{" "}
+                {formatDate(transaction.nextRunDate)}
+              </Text>
+            </View>
+            {/* Show execution count for recurring transactions */}
+            {(transaction.executionCount ?? 0) > 0 && (
+              <Text style={styles.executionCount}>
+                Executed {transaction.executionCount} time
+                {transaction.executionCount !== 1 ? "s" : ""}
+              </Text>
+            )}
+          </View>
         </View>
-      </View>
 
-      <View style={styles.transactionRight}>
-        <Text
-          style={[
-            styles.transactionAmount,
-            { color: getStatusColor(transaction) },
-          ]}
-        >
-          {transaction.type === "income" ? "+" : "-"}
-          {formatCurrency(transaction.amount)}
-        </Text>
-
-        <View style={styles.transactionActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(e) => {
-              e.stopPropagation()
-              toggleTransaction(transaction._id)
-            }}
+        <View style={styles.transactionRight}>
+          <Text
+            style={[
+              styles.transactionAmount,
+              { color: getStatusColor(transaction) },
+            ]}
           >
-            <Ionicons
-              name={transaction.status === "active" ? "pause" : "play"}
-              size={16}
-              color={transaction.status === "active" ? "#F59E0B" : "#10B981"}
-            />
-          </TouchableOpacity>
+            {transaction.type === "income" ? "+" : "-"}
+            {formatCurrency(transaction.amount)}
+          </Text>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={(e) => {
-              e.stopPropagation()
-              deleteTransaction(transaction)
-            }}
+          <View style={styles.transactionActions}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={(e) => {
+                e.stopPropagation()
+                toggleTransaction(transaction.id)
+              }}
+            >
+              <Ionicons
+                name={transaction.isActive ? "pause" : "play"}
+                size={16}
+                color={transaction.isActive ? "#F59E0B" : "#10B981"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={(e) => {
+                e.stopPropagation()
+                deleteTransaction(transaction)
+              }}
+            >
+              <Ionicons name="trash" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Status Overlays */}
+        {transaction?.isActive === 0 && (
+          <View style={[styles.statusOverlay, { backgroundColor: "#F59E0B" }]}>
+            <Text style={styles.statusText}>Paused</Text>
+          </View>
+        )}
+
+        {transactionIsOverdue && (
+          <View
+            style={[
+              styles.statusOverlay,
+              { backgroundColor: "#EF4444", top: 32 },
+            ]}
           >
-            <Ionicons name="trash" size={16} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
+            <Text style={styles.statusText}>Overdue</Text>
+          </View>
+        )}
 
-      {/* Status Overlays */}
-      {transaction.status === "paused" && (
-        <View style={[styles.statusOverlay, { backgroundColor: "#F59E0B" }]}>
-          <Text style={styles.statusText}>Paused</Text>
-        </View>
-      )}
-
-      {transaction.isOverdue && (
-        <View
-          style={[
-            styles.statusOverlay,
-            { backgroundColor: "#EF4444", top: 32 },
-          ]}
-        >
-          <Text style={styles.statusText}>Overdue</Text>
-        </View>
-      )}
-
-      {transaction.status === "completed" && (
-        <View style={[styles.statusOverlay, { backgroundColor: "#10B981" }]}>
-          <Text style={styles.statusText}>Completed</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  )
+        {transaction.status === "completed" && (
+          <View style={[styles.statusOverlay, { backgroundColor: "#10B981" }]}>
+            <Text style={styles.statusText}>Completed</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    )
+  }
 
   return (
     <>
@@ -279,23 +329,23 @@ export default function ScheduledTransactionsScreen() {
           {/* Statistics Cards */}
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{stats.active || 0}</Text>
+              <Text style={styles.statValue}>{stats?.active ?? 0}</Text>
               <Text style={styles.statLabel}>Active</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{stats.paused || 0}</Text>
+              <Text style={styles.statValue}>{stats?.paused ?? 0}</Text>
               <Text style={styles.statLabel}>Paused</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={[styles.statValue, { fontSize: 14 }]}>
-                {formatCurrency(stats.totalMonthlyExpenses || 0)}
+                {formatCurrency(stats?.totalMonthlyExpenses ?? 0)}
               </Text>
               <Text style={styles.statLabel}>Monthly Out</Text>
             </View>
           </View>
 
           {/* Overdue Alert */}
-          {stats.overdue > 0 && (
+          {(stats?.overdue ?? 0) > 0 && (
             <View style={styles.overdueAlert}>
               <Ionicons name="warning" size={20} color="#F59E0B" />
               <View>
@@ -309,20 +359,21 @@ export default function ScheduledTransactionsScreen() {
           )}
 
           {/* Net Flow Card */}
-          {(stats.totalMonthlyIncome > 0 || stats.totalMonthlyExpenses > 0) && (
+          {((stats?.totalMonthlyIncome ?? 0) > 0 ||
+            (stats?.totalMonthlyExpenses ?? 0) > 0) && (
             <View style={styles.netFlowCard}>
               <Text style={styles.netFlowTitle}>Monthly Net Flow</Text>
               <View style={styles.netFlowDetails}>
                 <View style={styles.flowItem}>
                   <Text style={styles.flowLabel}>Income</Text>
                   <Text style={[styles.flowValue, { color: "#10B981" }]}>
-                    +{formatCurrency(stats.totalMonthlyIncome || 0)}
+                    +{formatCurrency(stats?.totalMonthlyIncome ?? 0)}
                   </Text>
                 </View>
                 <View style={styles.flowItem}>
                   <Text style={styles.flowLabel}>Expenses</Text>
                   <Text style={[styles.flowValue, { color: "#EF4444" }]}>
-                    -{formatCurrency(stats.totalMonthlyExpenses || 0)}
+                    -{formatCurrency(stats?.totalMonthlyExpenses ?? 0)}
                   </Text>
                 </View>
                 <View style={[styles.flowItem, styles.netFlowItem]}>
@@ -333,12 +384,14 @@ export default function ScheduledTransactionsScreen() {
                       styles.netFlowValue,
                       {
                         color:
-                          stats.netMonthlyFlow >= 0 ? "#10B981" : "#EF4444",
+                          (stats?.netMonthlyFlow ?? 0) >= 0
+                            ? "#10B981"
+                            : "#EF4444",
                       },
                     ]}
                   >
-                    {stats.netMonthlyFlow >= 0 ? "+" : ""}
-                    {formatCurrency(stats.netMonthlyFlow || 0)}
+                    {(stats?.netMonthlyFlow ?? 0) >= 0 ? "+" : ""}
+                    {formatCurrency(stats?.netMonthlyFlow ?? 0)}
                   </Text>
                 </View>
               </View>
@@ -346,11 +399,11 @@ export default function ScheduledTransactionsScreen() {
           )}
 
           <Text style={styles.sectionTitle}>
-            Scheduled Transactions ({scheduledTransactions.length})
+            Scheduled Transactions ({scheduledTransactions?.length ?? 0})
           </Text>
 
           {/* Loading State */}
-          {loading && scheduledTransactions.length === 0 && (
+          {loading && (scheduledTransactions?.length ?? 0) === 0 && (
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color="#1CC29F" />
               <Text style={styles.loadingText}>Loading transactions...</Text>
@@ -359,11 +412,11 @@ export default function ScheduledTransactionsScreen() {
 
           {/* Transactions List */}
           <View style={styles.transactionsList}>
-            {scheduledTransactions.map(renderTransaction)}
+            {scheduledTransactions?.filter(Boolean).map(renderTransaction)}
           </View>
 
           {/* Empty State */}
-          {scheduledTransactions.length === 0 && !loading && (
+          {(scheduledTransactions?.length ?? 0) === 0 && !loading && (
             <View style={styles.emptyState}>
               <View style={styles.emptyStateIcon}>
                 <Ionicons name="time-outline" size={48} color="#D1D5DB" />
@@ -386,7 +439,7 @@ export default function ScheduledTransactionsScreen() {
           )}
 
           {/* Filter/Sort Options (Future Enhancement) */}
-          {scheduledTransactions.length > 5 && (
+          {(scheduledTransactions?.length ?? 0) > 5 && (
             <TouchableOpacity style={styles.filterButton}>
               <Ionicons name="filter-outline" size={16} color="#6B7280" />
               <Text style={styles.filterText}>Filter & Sort</Text>

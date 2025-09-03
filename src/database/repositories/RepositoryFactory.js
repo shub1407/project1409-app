@@ -2,6 +2,7 @@
 import { AccountRepository } from "./AccountRepository.js"
 import { CategoryRepository } from "./CategoryRepository.js"
 import { ReportRepository } from "./ReportRepository.js"
+import { ScheduledTransactionRepository } from "./ScheduledTransactionRepository.js"
 import { TransactionRepository } from "./TransactionRepository.js"
 export class RepositoryFactory {
   constructor(db) {
@@ -35,5 +36,12 @@ export class RepositoryFactory {
       this._repositories.reports = new ReportRepository(this.db)
     }
     return this._repositories.reports
+  }
+  getScheduledTransactionRepository() {
+    if (!this._repositories.scheduledTransactions) {
+      this._repositories.scheduledTransactions =
+        new ScheduledTransactionRepository(this.db)
+    }
+    return this._repositories.scheduledTransactions
   }
 }

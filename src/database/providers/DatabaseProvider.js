@@ -1,6 +1,7 @@
 import { useSQLiteContext } from "expo-sqlite"
 import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import { DatabaseService } from "../../services/databse/DatabaseService"
+import { ScheduledTransactionService } from "../../services/databse/ScheduledTransactionService"
 import { migrations } from "../migrations"
 import { MigrationRunner } from "../migrations/migrationRunner"
 const DatabaseContext = createContext()
@@ -9,6 +10,10 @@ export const DatabaseProvider = ({ children }) => {
   const [isReady, setIsReady] = useState(false)
   const [migrationStatus, setMigrationStatus] = useState(null)
   const dbService = useMemo(() => new DatabaseService(db), [db])
+  const scheduledTransactionService = useMemo(() => {
+    if (!isReady) return null
+    return new ScheduledTransactionService(dbService)
+  }, [dbService, isReady])
   async function initialseDB() {
     setIsReady(false)
     console.log("----Initialising Database----")
@@ -25,7 +30,7 @@ export const DatabaseProvider = ({ children }) => {
   useEffect(() => {
     initialseDB()
   }, [db])
-  const values = { db, isReady, dbService }
+  const values = { db, isReady, dbService, scheduledTransactionService }
   return (
     <DatabaseContext.Provider value={values}>
       {children}

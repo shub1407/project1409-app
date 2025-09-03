@@ -1,5 +1,5 @@
-export const migration003 = {
-  version: 3,
+export const migration002 = {
+  version: 2,
   name: "Seed default categories",
   description: "Insert default income and expense categories for new users",
 

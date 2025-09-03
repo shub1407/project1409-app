@@ -108,7 +108,7 @@ export const CategoryProvider = ({ children }) => {
 
     try {
       const result = await dbService.categories.getCategories()
-      console.log("Db categories::", result)
+      // console.log("Db categories::", result)
 
       if (result.success) {
         dispatch({ type: ACTIONS.SET_CATEGORIES, payload: result.data })

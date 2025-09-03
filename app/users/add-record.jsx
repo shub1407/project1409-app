@@ -219,13 +219,12 @@ export default function AddTransactionScreen() {
         date: formData.date,
         note: formData.note.trim(),
       }
-      console.log("Transfer data: ", transactionData)
 
       // Call API to save transaction
       //await transactionService.createTransaction(transactionData)
       //call to local db
       const result = await createTransaction(transactionData)
-      console.log("Local DB result: ", result)
+
       // Refresh accounts and reset form
       await refreshAccounts()
       resetForm()

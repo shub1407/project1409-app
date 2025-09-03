@@ -21,6 +21,12 @@ export class BaseRepository {
     try {
       const id = this.generateId()
       const timestamp = Date.now()
+      console.log(
+        "Creating record in",
+        this.tableName,
+        "with raw data:: ",
+        data
+      )
 
       const recordData = toSnakeCase({
         id,

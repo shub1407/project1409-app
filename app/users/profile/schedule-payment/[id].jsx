@@ -18,8 +18,8 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../../../src/context/AccountContext"
 import { useScheduledTransactionContext } from "../../../../src/context/ScheduledTransactionContext"
+import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
 import ScheduledTransactionService from "../../../../src/services/ScheduledTransactionService"
-
 export default function ScheduledTransactionDetailScreen() {
   const { id } = useLocalSearchParams()
   const { refreshData } = useScheduledTransactionContext()
@@ -31,7 +31,7 @@ export default function ScheduledTransactionDetailScreen() {
   const [confirmingPayment, setConfirmingPayment] = useState(false)
   const [showAccountDropdown, setShowAccountDropdown] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
-
+  const { getScheduledTransactionById } = useScheduledTransaction()
   // Editable confirmation data - Fixed to prevent modal closing
   const [confirmData, setConfirmData] = useState({
     accountId: "",
@@ -53,9 +53,10 @@ export default function ScheduledTransactionDetailScreen() {
   const loadTransactionDetails = async () => {
     try {
       setLoading(true)
-      const response = await ScheduledTransactionService.getById(id)
-      if (response.data.success) {
-        const txn = response.data.data.scheduledTransaction
+      const response = await getScheduledTransactionById(id)
+      console.log("Response from db:: ", response)
+      if (response.success) {
+        const txn = response.data
         setTransaction(txn)
         // Initialize confirm data with default values
         setConfirmData({
@@ -154,7 +155,7 @@ export default function ScheduledTransactionDetailScreen() {
   const getDaysUntilDue = () => {
     if (!transaction) return 0
     const now = new Date()
-    const dueDate = new Date(transaction.nextDueDate)
+    const dueDate = new Date(transaction.nextPaymentDate)
     const diffTime = dueDate - now
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
     return diffDays
@@ -181,7 +182,7 @@ export default function ScheduledTransactionDetailScreen() {
   const getSelectedAccount = () => {
     return accounts.find(
       (acc) =>
-        acc.id === confirmData.accountId || acc._id === confirmData.accountId
+        acc.id === confirmData.accountId || acc.id === confirmData.accountId
     )
   }
 
@@ -465,7 +466,7 @@ export default function ScheduledTransactionDetailScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Category:</Text>
                 <Text style={styles.summaryValue}>
-                  {transaction?.categoryId?.label || "No Category"}
+                  {transaction?.categoryLabel || "No Category"}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
@@ -478,7 +479,7 @@ export default function ScheduledTransactionDetailScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Expected Date:</Text>
                 <Text style={styles.summaryValue}>
-                  {formatDate(transaction?.nextDueDate)}
+                  {formatDate(transaction?.nextPaymentDate)}
                 </Text>
               </View>
             </View>
@@ -560,7 +561,7 @@ export default function ScheduledTransactionDetailScreen() {
             onPress={() =>
               router.push({
                 pathname: "/users/profile/schedule-payment/edit",
-                params: { id: transaction._id },
+                params: { id: transaction.id },
               })
             }
             style={styles.editButton}
@@ -595,12 +596,11 @@ export default function ScheduledTransactionDetailScreen() {
               <View style={styles.overviewDetails}>
                 <Text style={styles.overviewTitle}>{transaction.name}</Text>
                 <Text style={styles.overviewCategory}>
-                  {transaction.categoryId?.label || "No category"}
+                  {transaction.categoryLabel || "No category"}
                 </Text>
                 {/* Show assigned account */}
                 <Text style={styles.overviewAccount}>
-                  Account:{" "}
-                  {transaction.fromAccountId?.name || "Unknown Account"}
+                  Account: {transaction.accountName || "Unknown Account"}
                 </Text>
               </View>
               <View style={styles.overviewAmount}>
@@ -623,7 +623,7 @@ export default function ScheduledTransactionDetailScreen() {
               <View style={styles.statItem}>
                 <View style={styles.statIconContainer}>
                   <Ionicons
-                    name={getFrequencyIcon(transaction.frequency)}
+                    name={getFrequencyIcon(transaction?.frequency)}
                     size={16}
                     color="#1CC29F"
                   />
@@ -692,7 +692,7 @@ export default function ScheduledTransactionDetailScreen() {
               </View>
               <View style={styles.nextPaymentDetails}>
                 <Text style={styles.nextPaymentDate}>
-                  {formatDate(transaction.nextDueDate)}
+                  {new Date(transaction.nextPaymentDate).toLocaleDateString()}
                 </Text>
                 <Text style={styles.nextPaymentInfo}>
                   {isOverdue()
@@ -815,7 +815,7 @@ export default function ScheduledTransactionDetailScreen() {
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Account:</Text>
                 <Text style={styles.infoValue}>
-                  {transaction.fromAccountId?.name || "Unknown Account"}
+                  {transaction.accountName || "Unknown Account"}
                 </Text>
               </View>
               <View style={styles.infoRow}>

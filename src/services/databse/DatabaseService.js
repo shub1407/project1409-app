@@ -19,4 +19,7 @@ export class DatabaseService {
   get report() {
     return this.repositoryFactory.getReportRepository()
   }
+  get scheduledTransactions() {
+    return this.repositoryFactory.getScheduledTransactionRepository()
+  }
 }

@@ -17,13 +17,17 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../../../src/context/AccountContext"
 import { useCategoryContext } from "../../../../src/context/CategoryContext"
-import { useScheduledTransactionContext } from "../../../../src/context/ScheduledTransactionContext"
-
+import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
 export default function AddScheduledTransactionScreen() {
   const { accounts } = useAccountsContext()
   const { expenseCategories, incomeCategories } = useCategoryContext()
-  const { createScheduledTransaction, loading: contextLoading } =
-    useScheduledTransactionContext()
+  // const { createScheduledTransaction, loading: contextLoading } =
+  //   useScheduledTransactionContext()
+  const {
+    loading: contextLoading,
+    createScheduledTransaction,
+    refreshData,
+  } = useScheduledTransaction()
 
   const [formData, setFormData] = useState({
     name: "",
@@ -197,11 +201,11 @@ export default function AddScheduledTransactionScreen() {
       case "type":
         return transactionTypes.find((t) => t.value === formData.type)
       case "category":
-        return currentCategories.find((c) => c._id === formData.categoryId)
+        return currentCategories.find((c) => c.id === formData.categoryId)
       case "account":
         return accounts.find(
           (a) =>
-            a.id === formData.fromAccountId || a._id === formData.fromAccountId
+            a.id === formData.fromAccountId || a.id === formData.fromAccountId
         )
       case "frequency":
         return frequencyOptions.find((f) => f.value === formData.frequency)
@@ -253,11 +257,11 @@ export default function AddScheduledTransactionScreen() {
         description: formData.description || "",
         type: formData.type,
         categoryId: formData.categoryId || undefined,
-        fromAccountId: formData.fromAccountId,
+        accountId: formData.fromAccountId,
         amount: parseFloat(formData.amount),
-        currency: formData.currency,
-        frequency: formData.isRecurring ? formData.frequency : "one-time",
-        isRecurring: formData.isRecurring,
+
+        recurrenceRule: formData.isRecurring ? formData.frequency : "one-time",
+        isRecurring: formData.isRecurring ? 1 : 0,
         startDate: formData.startDate,
         endDate: formData.endDate || undefined,
         notificationSettings: {
@@ -274,10 +278,18 @@ export default function AddScheduledTransactionScreen() {
 
       console.log("Sending API data:", apiData) // Debug log
 
+      //const result = await createScheduledTransaction(apiData)
       const result = await createScheduledTransaction(apiData)
+      refreshData()
+      console.log("Received hooks response:", result)
 
       Alert.alert("Success", "Scheduled transaction created successfully!", [
-        { text: "OK", onPress: () => router.back() },
+        {
+          text: "OK",
+          onPress: () => {
+            router.back()
+          },
+        },
       ])
     } catch (error) {
       console.error("Error creating scheduled transaction:", error)
@@ -821,7 +833,7 @@ export default function AddScheduledTransactionScreen() {
           "category",
           "Select Category",
           currentCategories,
-          "_id",
+          "id",
           "label"
         )}
         {renderModal("account", "Select Account", accounts, "id", "name")}
