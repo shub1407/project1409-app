@@ -2,7 +2,6 @@
 import * as SecureStore from "expo-secure-store"
 import { createContext, useContext, useEffect, useReducer } from "react"
 import { useDatabase } from "../database/providers/DatabaseProvider"
-import { categoryService } from "../services/categoryService"
 // Initial state
 const initialState = {
   categories: [],
@@ -108,7 +107,7 @@ export const CategoryProvider = ({ children }) => {
     dispatch({ type: ACTIONS.SET_LOADING, payload: true })
 
     try {
-      const result = await dbService.categories.findAll()
+      const result = await dbService.categories.getCategories()
       console.log("Db categories::", result)
 
       if (result.success) {
@@ -144,7 +143,8 @@ export const CategoryProvider = ({ children }) => {
   // Create new category
   const addCategory = async (categoryData) => {
     try {
-      const result = await categoryService.addCategory(categoryData)
+      //const result = await categoryService.addCategory(categoryData)
+      const result = await dbService.categories.create(categoryData)
 
       if (result.success) {
         dispatch({ type: ACTIONS.ADD_CATEGORY, payload: result.data })
@@ -161,7 +161,7 @@ export const CategoryProvider = ({ children }) => {
   // Update category
   const updateCategory = async (categoryId, updates) => {
     try {
-      const result = await categoryService.updateCategory(categoryId, updates)
+      const result = await dbService.categories.update(categoryId, updates)
 
       if (result.success) {
         dispatch({
@@ -181,7 +181,8 @@ export const CategoryProvider = ({ children }) => {
   // Delete category
   const deleteCategory = async (categoryId) => {
     try {
-      const result = await categoryService.deleteCategory(categoryId)
+      const result = await dbService.categories.delete(categoryId)
+      console.log("Delete category result:", categoryId, "result", result)
 
       if (result.success) {
         dispatch({ type: ACTIONS.DELETE_CATEGORY, payload: categoryId })

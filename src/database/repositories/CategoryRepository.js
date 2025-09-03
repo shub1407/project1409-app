@@ -1,6 +1,8 @@
 // repositories/CategoryRepository.js
+import { toCamelCase } from "../../utility/caseMapper.js"
+import { Logger } from "../../utility/logger.js"
+import { Result } from "../../utility/Result.js"
 import { BaseRepository } from "./BaseRepository.js"
-
 export class CategoryRepository extends BaseRepository {
   constructor(db) {
     super(db, "categories")
@@ -56,5 +58,52 @@ export class CategoryRepository extends BaseRepository {
     `)
 
     return result
+  }
+  async getCategories(type = null, hiddenCategoryIds = []) {
+    try {
+      let query = `
+      SELECT 
+        c.*,
+        COUNT(t.id) as transaction_count
+      FROM categories c
+      LEFT JOIN transactions t ON c.id = t.category_id 
+        AND t.is_deleted = 0
+      WHERE c.is_deleted = 0 
+        AND c.is_active = 1
+    `
+
+      const params = []
+
+      // Filter by type if provided
+      if (type) {
+        query += ` AND c.type = ?`
+        params.push(type)
+      }
+
+      // Exclude hidden categories if any
+      if (hiddenCategoryIds.length > 0) {
+        const placeholders = hiddenCategoryIds.map(() => "?").join(", ")
+        query += ` AND c.id NOT IN (${placeholders})`
+        params.push(...hiddenCategoryIds)
+      }
+
+      query += `
+      GROUP BY c.id
+      ORDER BY c.is_default DESC, c.label ASC
+    `
+
+      const rows = await this.db.getAllAsync(query, params)
+
+      return Result.ok(
+        toCamelCase(rows),
+        "Categories with transaction count fetched successfully"
+      )
+    } catch (err) {
+      Logger.error(`Error in getCategories: ${err.message}`)
+      return Result.fail(
+        err.message,
+        "Failed to fetch categories with transaction count"
+      )
+    }
   }
 }

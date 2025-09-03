@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
@@ -26,6 +27,7 @@ export default function CategoriesScreen() {
     updateCategory,
     deleteCategory,
     fetchCategories,
+    loading: categoryLoading,
   } = useCategoryContext()
   const [activeTab, setActiveTab] = useState("expense")
   const [showAddModal, setShowAddModal] = useState(false)
@@ -33,6 +35,10 @@ export default function CategoriesScreen() {
   const [newCategoryName, setNewCategoryName] = useState("")
   const [selectedIcon, setSelectedIcon] = useState("apps-outline")
   const [selectedColor, setSelectedColor] = useState("#1CC29F")
+  useEffect(() => {
+    // Reset state when modal is closed
+    fetchCategories()
+  }, [])
 
   const icons = [
     "fast-food-outline",
@@ -133,6 +139,7 @@ export default function CategoriesScreen() {
       }
       return
     }
+    console.log("Editing category:", category)
 
     setEditingCategory(category)
     setNewCategoryName(category.label)
@@ -154,7 +161,7 @@ export default function CategoriesScreen() {
     }
 
     try {
-      await updateCategory(editingCategory._id, {
+      await updateCategory(editingCategory.id, {
         label: newCategoryName.trim(),
         icon: selectedIcon,
         color: selectedColor,
@@ -188,7 +195,7 @@ export default function CategoriesScreen() {
                 // Navigate to transactions filtered by this category
                 router.push({
                   pathname: "/(tabs)/records",
-                  params: { categoryId: category._id },
+                  params: { categoryId: category.id },
                 })
               },
             },
@@ -208,7 +215,7 @@ export default function CategoriesScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await deleteCategory(category._id)
+              await deleteCategory(category.id)
               await fetchCategories()
               Alert.alert("Success", "Category deleted successfully")
             } catch (error) {
@@ -220,6 +227,13 @@ export default function CategoriesScreen() {
     )
   }
 
+  if (categoryLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#1CC29F" />
+      </View>
+    )
+  }
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
@@ -272,72 +286,76 @@ export default function CategoriesScreen() {
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.categoriesContainer}>
-            {currentCategories.map((category, index) => (
-              <TouchableOpacity
-                key={category._id}
-                style={[
-                  styles.categoryItem,
-                  { width: getCardWidth() },
-                  !canModifyCategory(category) && styles.lockedCategoryItem,
-                ]}
-                onPress={() => handleEditCategory(category)}
-                activeOpacity={0.7}
-              >
-                {/* Show delete button only for modifiable categories */}
-                {canModifyCategory(category) && (
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDeleteCategory(category)}
-                  >
-                    <Ionicons name="close-circle" size={18} color="#EF4444" />
-                  </TouchableOpacity>
-                )}
+            {!categoryLoading &&
+              currentCategories.map((category, index) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryItem,
+                    { width: getCardWidth() },
+                    !canModifyCategory(category) && styles.lockedCategoryItem,
+                  ]}
+                  onPress={() => handleEditCategory(category)}
+                  activeOpacity={0.7}
+                >
+                  {/* Show delete button only for modifiable categories */}
+                  {canModifyCategory(category) && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteCategory(category)}
+                    >
+                      <Ionicons name="close-circle" size={18} color="#EF4444" />
+                    </TouchableOpacity>
+                  )}
 
-                {/* Show lock icon for protected categories */}
-                {!canModifyCategory(category) && (
-                  <View style={styles.lockIndicator}>
+                  {/* Show lock icon for protected categories */}
+                  {!canModifyCategory(category) && (
+                    <View style={styles.lockIndicator}>
+                      <Ionicons
+                        name={
+                          category.isDefault
+                            ? "shield-checkmark"
+                            : "lock-closed"
+                        }
+                        size={12}
+                        color="#F59E0B"
+                      />
+                    </View>
+                  )}
+
+                  <View
+                    style={[
+                      styles.categoryIcon,
+                      { backgroundColor: `${category.color}20` },
+                    ]}
+                  >
                     <Ionicons
-                      name={
-                        category.isDefault ? "shield-checkmark" : "lock-closed"
-                      }
-                      size={12}
-                      color="#F59E0B"
+                      name={category.icon}
+                      size={24}
+                      color={category.color}
                     />
                   </View>
-                )}
-
-                <View
-                  style={[
-                    styles.categoryIcon,
-                    { backgroundColor: `${category.color}20` },
-                  ]}
-                >
-                  <Ionicons
-                    name={category.icon}
-                    size={24}
-                    color={category.color}
-                  />
-                </View>
-                <Text style={styles.categoryName} numberOfLines={2}>
-                  {category.label}
-                </Text>
-
-                {/* Show transaction count if exists */}
-                {category.transactionCount > 0 && (
-                  <Text style={styles.transactionCount}>
-                    {category.transactionCount} transaction
-                    {category.transactionCount !== 1 ? "s" : ""}
+                  <Text style={styles.categoryName} numberOfLines={2}>
+                    {category.label}
                   </Text>
-                )}
 
-                {/* Show default badge */}
-                {category.isDefault && (
-                  <View style={styles.defaultBadge}>
-                    <Text style={styles.defaultBadgeText}>Default</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
+                  {/* Show transaction count if exists */}
+                  {typeof category.transactionCount === "number" &&
+                    category.transactionCount > 0 && (
+                      <Text style={styles.transactionCount}>
+                        {category.transactionCount} transaction
+                        {category.transactionCount !== 1 ? "s" : ""}
+                      </Text>
+                    )}
+
+                  {/* Show default badge */}
+                  {category.isDefault && (
+                    <View style={styles.defaultBadge}>
+                      <Text style={styles.defaultBadgeText}>Default</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
           </View>
 
           {currentCategories.length === 0 && (
