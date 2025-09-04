@@ -513,4 +513,255 @@ export class ScheduledTransactionRepository extends BaseRepository {
       return Result.fail(err.message, "Failed to fetch statistics")
     }
   }
+
+  //scheduled transaction execution statistics
+  // Method to record execution (works with both approaches)
+  async recordExecution(scheduledTransactionId, executionData) {
+    try {
+      const {
+        transactionId,
+        amount,
+        status = "success",
+        failureReason = null,
+        executionType = "manual",
+        accountBalanceBefore = null,
+        accountBalanceAfter = null,
+        toAccountBalanceBefore = null,
+        toAccountBalanceAfter = null,
+        metadata = {},
+      } = executionData
+
+      const executionId = this.generateId()
+      const timestamp = Date.now()
+
+      // Record in dedicated execution log table (if using Option 2)
+      const executionRecord = {
+        id: executionId,
+        scheduledTransactionId,
+        transactionId,
+        executedAt: timestamp,
+        amount,
+        status,
+        failureReason,
+        executionType,
+        accountBalanceBefore,
+        accountBalanceAfter,
+        toAccountBalanceBefore,
+        toAccountBalanceAfter,
+        metadata: JSON.stringify(metadata),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        isDeleted: 0,
+        syncStatus: "pending_create",
+        version: 1,
+      }
+
+      const recordData = toSnakeCase(executionRecord)
+      const columns = Object.keys(recordData)
+      const placeholders = columns.map(() => "?").join(", ")
+      const values = columns.map((col) => recordData[col])
+
+      await this.db.runAsync(
+        `INSERT INTO scheduled_transaction_executions (${columns.join(
+          ", "
+        )}) VALUES (${placeholders})`,
+        values
+      )
+
+      // Also update the scheduled transaction's execution history and count
+      await this.addExecutionHistory(scheduledTransactionId, {
+        executionId,
+        executedAt: timestamp,
+        transactionId,
+        amount,
+        status,
+        failureReason,
+      })
+
+      return Result.ok(
+        { executionId, ...executionData },
+        "Execution recorded successfully"
+      )
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to record execution")
+    }
+  }
+
+  // Get execution history for a scheduled transaction
+  // Get execution history for a scheduled transaction
+  async getExecutionHistory(scheduledTransactionId, options = {}) {
+    try {
+      const { limit = 50, offset = 0, status } = options
+
+      let query = `
+      SELECT 
+        se.*,
+        st.name as scheduled_transaction_name,
+        st.type as scheduled_transaction_type,
+        st.recurrence_rule,
+        st.start_date,
+        st.frequency,
+        a.name as account_name,
+        a.icon as account_icon,
+        a.color as account_color,
+        ta.name as to_account_name,
+        ta.icon as to_account_icon,
+        ta.color as to_account_color,
+        t.description as transaction_description,
+        t.date as transaction_date
+      FROM scheduled_transaction_executions se
+      LEFT JOIN schedule_transactions st ON se.scheduled_transaction_id = st.id
+      LEFT JOIN accounts a ON st.account_id = a.id
+      LEFT JOIN accounts ta ON st.to_account_id = ta.id
+      LEFT JOIN transactions t ON se.transaction_id = t.id
+      WHERE se.scheduled_transaction_id = ? AND se.is_deleted = 0
+    `
+      const params = [scheduledTransactionId]
+
+      if (status) {
+        query += ` AND se.status = ?`
+        params.push(status)
+      }
+
+      query += ` ORDER BY se.executed_at DESC LIMIT ? OFFSET ?`
+      params.push(limit, offset)
+
+      const rows = await this.db.getAllAsync(query, params)
+      const executions = rows.map((row) =>
+        this.parseJsonFields(toCamelCase(row))
+      )
+
+      return Result.ok(executions, "Execution history retrieved successfully")
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to get execution history")
+    }
+  }
+
+  // Get execution statistics
+  async getExecutionStats(scheduledTransactionId) {
+    try {
+      const statsQuery = `
+      SELECT 
+        COUNT(*) as total_executions,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_executions,
+        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_executions,
+        SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_executions,
+        AVG(amount) as average_amount,
+        SUM(amount) as total_amount,
+        MIN(executed_at) as first_execution,
+        MAX(executed_at) as last_execution
+      FROM scheduled_transaction_executions
+      WHERE scheduled_transaction_id = ? AND is_deleted = 0 AND status = 'success'
+    `
+
+      const row = await this.db.getFirstAsync(statsQuery, [
+        scheduledTransactionId,
+      ])
+
+      return Result.ok(
+        toCamelCase(row || {}),
+        "Execution statistics retrieved successfully"
+      )
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to get execution statistics")
+    }
+  }
+  async getRecentExecutions(limit = 10) {
+    try {
+      const query = `
+      SELECT 
+        se.*,
+        st.name as scheduled_transaction_name,
+        st.type as scheduled_transaction_type,
+        t.description as transaction_description,
+        a.name as account_name
+      FROM scheduled_transaction_executions se
+      LEFT JOIN schedule_transactions st ON se.scheduled_transaction_id = st.id
+      LEFT JOIN transactions t ON se.transaction_id = t.id
+      LEFT JOIN accounts a ON st.account_id = a.id
+      WHERE se.is_deleted = 0
+      ORDER BY se.executed_at DESC
+      LIMIT ?
+    `
+
+      const rows = await this.db.getAllAsync(query, [limit])
+      const executions = rows.map((row) =>
+        this.parseJsonFields(toCamelCase(row))
+      )
+
+      return Result.ok(executions, "Recent executions retrieved successfully")
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to get recent executions")
+    }
+  }
+
+  // Get execution summary for dashboard
+  async getExecutionSummary() {
+    try {
+      const summaryQuery = `
+      SELECT 
+        COUNT(*) as total_executions,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_executions,
+        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_executions,
+        SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_executions,
+        SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END) as total_successful_amount,
+        COUNT(DISTINCT scheduled_transaction_id) as active_scheduled_transactions,
+        
+        -- Today's executions
+        SUM(CASE WHEN date(executed_at/1000, 'unixepoch') = date('now') THEN 1 ELSE 0 END) as today_executions,
+        SUM(CASE WHEN date(executed_at/1000, 'unixepoch') = date('now') AND status = 'success' THEN 1 ELSE 0 END) as today_successful,
+        
+        -- This week's executions
+        SUM(CASE WHEN executed_at >= ? THEN 1 ELSE 0 END) as week_executions,
+        SUM(CASE WHEN executed_at >= ? AND status = 'success' THEN 1 ELSE 0 END) as week_successful,
+        
+        -- This month's executions  
+        SUM(CASE WHEN executed_at >= ? THEN 1 ELSE 0 END) as month_executions,
+        SUM(CASE WHEN executed_at >= ? AND status = 'success' THEN 1 ELSE 0 END) as month_successful
+        
+      FROM scheduled_transaction_executions
+      WHERE is_deleted = 0
+    `
+
+      const now = Date.now()
+      const weekStart = now - 7 * 24 * 60 * 60 * 1000
+      const monthStart = now - 30 * 24 * 60 * 60 * 1000
+
+      const row = await this.db.getFirstAsync(summaryQuery, [
+        weekStart,
+        weekStart,
+        monthStart,
+        monthStart,
+      ])
+
+      const summary = toCamelCase(row || {})
+
+      // Calculate success rates
+      summary.overallSuccessRate =
+        summary.totalExecutions > 0
+          ? (summary.successfulExecutions / summary.totalExecutions) * 100
+          : 0
+      summary.todaySuccessRate =
+        summary.todayExecutions > 0
+          ? (summary.todaySuccessful / summary.todayExecutions) * 100
+          : 0
+      summary.weekSuccessRate =
+        summary.weekExecutions > 0
+          ? (summary.weekSuccessful / summary.weekExecutions) * 100
+          : 0
+      summary.monthSuccessRate =
+        summary.monthExecutions > 0
+          ? (summary.monthSuccessful / summary.monthExecutions) * 100
+          : 0
+
+      return Result.ok(summary, "Execution summary retrieved successfully")
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to get execution summary")
+    }
+  }
 }

@@ -19,19 +19,23 @@ import {
 import { useAccountsContext } from "../../../../src/context/AccountContext"
 import { useScheduledTransactionContext } from "../../../../src/context/ScheduledTransactionContext"
 import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
-import ScheduledTransactionService from "../../../../src/services/ScheduledTransactionService"
 export default function ScheduledTransactionDetailScreen() {
   const { id } = useLocalSearchParams()
   const { refreshData } = useScheduledTransactionContext()
   const { accounts } = useAccountsContext()
 
   const [transaction, setTransaction] = useState(null)
+  const [executionHistory, setExecutionHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [confirmModalVisible, setConfirmModalVisible] = useState(false)
   const [confirmingPayment, setConfirmingPayment] = useState(false)
   const [showAccountDropdown, setShowAccountDropdown] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
-  const { getScheduledTransactionById } = useScheduledTransaction()
+  const {
+    getScheduledTransactionById,
+    confirmScheduledTransaction,
+    getExecutionHistory,
+  } = useScheduledTransaction()
   // Editable confirmation data - Fixed to prevent modal closing
   const [confirmData, setConfirmData] = useState({
     accountId: "",
@@ -54,13 +58,17 @@ export default function ScheduledTransactionDetailScreen() {
     try {
       setLoading(true)
       const response = await getScheduledTransactionById(id)
-      console.log("Response from db:: ", response)
+      const eHistoryResponse = await getExecutionHistory(id)
+      console.log("Execution history hai:: ", eHistoryResponse)
+      setExecutionHistory(eHistoryResponse.data || [])
+      //console.log("Response from db:: ", response)
       if (response.success) {
         const txn = response.data
+        // console.log("Transaction data::: ", txn)
         setTransaction(txn)
         // Initialize confirm data with default values
         setConfirmData({
-          accountId: txn.fromAccountId?._id || "",
+          accountId: txn?.accountId || "",
           amount: txn.amount?.toString() || "",
           date: new Date(), // Current date as actual payment date
           note: "",
@@ -180,10 +188,7 @@ export default function ScheduledTransactionDetailScreen() {
   }
 
   const getSelectedAccount = () => {
-    return accounts.find(
-      (acc) =>
-        acc.id === confirmData.accountId || acc.id === confirmData.accountId
-    )
+    return accounts.find((acc) => acc.id === confirmData.accountId)
   }
 
   const handleDateChange = (event, selectedDate) => {
@@ -206,10 +211,7 @@ export default function ScheduledTransactionDetailScreen() {
 
     setConfirmingPayment(true)
     try {
-      await ScheduledTransactionService.confirmTransaction(
-        transaction._id,
-        confirmData
-      )
+      await confirmScheduledTransaction(transaction.id, confirmData)
 
       setConfirmModalVisible(false)
       Alert.alert(
@@ -724,13 +726,12 @@ export default function ScheduledTransactionDetailScreen() {
           {/* Payment History */}
           <View style={styles.historySection}>
             <Text style={styles.sectionTitle}>
-              Payment History ({transaction.executionHistory?.length || 0})
+              Payment History ({executionHistory?.length || 0})
             </Text>
 
-            {transaction.executionHistory &&
-            transaction.executionHistory.length > 0 ? (
+            {executionHistory && executionHistory.length > 0 ? (
               <View style={styles.historyList}>
-                {transaction.executionHistory
+                {executionHistory
                   .sort(
                     (a, b) => new Date(b.executedAt) - new Date(a.executedAt)
                   )
@@ -758,7 +759,7 @@ export default function ScheduledTransactionDetailScreen() {
                             Actual: {formatDateTime(history.executedAt)}
                           </Text>
                           <Text style={styles.historyExpectedDate}>
-                            Expected: {formatDate(transaction.nextDueDate)}
+                            Expected: {formatDate(history.expectedDate)}
                           </Text>
                           <Text
                             style={[
@@ -770,9 +771,7 @@ export default function ScheduledTransactionDetailScreen() {
                               history.status.slice(1)}
                           </Text>
                           <Text style={styles.historyAccount}>
-                            From:{" "}
-                            {transaction.fromAccountId?.name ||
-                              "Unknown Account"}
+                            From: {history.accountName || "Unknown Account"}
                           </Text>
                           {history.failureReason && (
                             <Text style={styles.failureReason}>

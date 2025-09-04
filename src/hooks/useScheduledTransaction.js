@@ -255,6 +255,23 @@ export const useScheduledTransaction = () => {
     },
     [scheduledTransactionService]
   )
+  const getExecutionHistory = useCallback(
+    async (id) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await scheduledTransactionService.getExecutionHistory(id)
+        return result
+      } catch (err) {
+        setError(err.message)
+        Logger.error(`Error fetching execution history for id ${id}:`, err)
+        return { success: false, error: err.message }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [scheduledTransactionService]
+  )
 
   return {
     //data
@@ -275,6 +292,7 @@ export const useScheduledTransaction = () => {
     getOverdueScheduledTransactions,
     getAccountBalanceAfterTransaction,
     confirmScheduledTransaction,
+    getExecutionHistory,
     refreshData,
   }
 }

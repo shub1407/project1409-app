@@ -18,21 +18,22 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../../../src/context/AccountContext"
 import { useCategoryContext } from "../../../../src/context/CategoryContext"
-import { useScheduledTransactionContext } from "../../../../src/context/ScheduledTransactionContext"
-import ScheduledTransactionService from "../../../../src/services/ScheduledTransactionService"
+import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
 
 export default function EditScheduledTransactionScreen() {
   const { id } = useLocalSearchParams()
   const { accounts } = useAccountsContext()
   const { expenseCategories, incomeCategories } = useCategoryContext()
+
   const {
     updateScheduledTransaction,
     loading: contextLoading,
-    refreshData,
-  } = useScheduledTransactionContext()
+    getScheduledTransactionById,
+  } = useScheduledTransaction()
 
   const [transaction, setTransaction] = useState(null)
   const [loadingTransaction, setLoadingTransaction] = useState(true)
+
   const [formData, setFormData] = useState({
     name: "",
     type: "expense",
@@ -79,24 +80,32 @@ export default function EditScheduledTransactionScreen() {
   const loadTransactionDetails = async () => {
     try {
       setLoadingTransaction(true)
-      const response = await ScheduledTransactionService.getById(id)
-      if (response.data.success) {
-        const txn = response.data.data.scheduledTransaction
-        setTransaction(txn)
+      const response = await getScheduledTransactionById(id)
 
-        // Populate form with existing data
+      if (response.success) {
+        const txn = response.data
+        setTransaction(txn)
+        console.log("Transaction data::: ", txn)
+
+        // Populate form with existing data - Fixed field mappings
         setFormData({
           name: txn.name || "",
           type: txn.type || "expense",
-          categoryId: txn.categoryId?._id || "",
-          fromAccountId: txn.fromAccountId?._id || "",
+          categoryId: txn.categoryId || "",
+          fromAccountId: txn.accountId || "", // Fixed: was txn.accoountId (typo)
           amount: txn.amount?.toString() || "",
           frequency: txn.frequency || "monthly",
-          isRecurring: txn.isRecurring !== false,
+          isRecurring: txn.isRecurring === 1 || txn.isRecurring === true, // Fixed: handle both boolean and integer
           startDate: txn.startDate
-            ? txn.startDate.slice(0, 10)
+            ? typeof txn.startDate === "number"
+              ? new Date(txn.startDate).toISOString().slice(0, 10)
+              : txn.startDate.slice(0, 10)
             : new Date().toISOString().slice(0, 10),
-          endDate: txn.endDate ? txn.endDate.slice(0, 10) : "",
+          endDate: txn.endDate
+            ? typeof txn.endDate === "number"
+              ? new Date(txn.endDate).toISOString().slice(0, 10)
+              : txn.endDate.slice(0, 10)
+            : "",
           notificationSettings: {
             enabled: txn.notificationSettings?.enabled !== false,
             timing: txn.notificationSettings?.timing || "on-due-date",
@@ -107,6 +116,8 @@ export default function EditScheduledTransactionScreen() {
           currency: txn.currency || "INR",
           status: txn.status || "active",
         })
+      } else {
+        Alert.alert("Error", response.message || "Failed to load transaction")
       }
     } catch (error) {
       console.error("Error loading transaction details:", error)
@@ -227,7 +238,16 @@ export default function EditScheduledTransactionScreen() {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString + "T00:00:00").toLocaleDateString("en-IN", {
+    if (!dateString) return "N/A"
+
+    let date
+    if (typeof dateString === "number") {
+      date = new Date(dateString)
+    } else {
+      date = new Date(dateString + "T00:00:00")
+    }
+
+    return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -270,11 +290,11 @@ export default function EditScheduledTransactionScreen() {
       case "type":
         return transactionTypes.find((t) => t.value === formData.type)
       case "category":
-        return currentCategories.find((c) => c._id === formData.categoryId)
+        return currentCategories.find((c) => c.id === formData.categoryId) // Fixed: use c.id instead of c._id
       case "account":
         return accounts.find(
           (a) =>
-            a.id === formData.fromAccountId || a._id === formData.fromAccountId
+            a.id === formData.fromAccountId || a.id === formData.fromAccountId
         )
       case "frequency":
         return frequencyOptions.find((f) => f.value === formData.frequency)
@@ -322,17 +342,16 @@ export default function EditScheduledTransactionScreen() {
 
     setLoading(true)
     try {
-      // Prepare data for API - match your backend schema
+      // Prepare data for API - match your backend schema exactly like add screen
       const apiData = {
         name: formData.name.trim(),
         description: formData.description || "",
         type: formData.type,
         categoryId: formData.categoryId || undefined,
-        fromAccountId: formData.fromAccountId,
+        accountId: formData.fromAccountId, // Fixed: use accountId to match your schema
         amount: parseFloat(formData.amount),
-        currency: formData.currency,
-        frequency: formData.isRecurring ? formData.frequency : "one-time",
-        isRecurring: formData.isRecurring,
+        recurrenceRule: formData.isRecurring ? formData.frequency : "one-time", // Fixed: use recurrenceRule
+        isRecurring: formData.isRecurring ? 1 : 0, // Fixed: convert to integer
         startDate: formData.startDate,
         endDate: formData.endDate || undefined,
         notificationSettings: {
@@ -342,18 +361,28 @@ export default function EditScheduledTransactionScreen() {
           push: formData.notificationSettings.push,
         },
         status: formData.status,
+        metadata: {
+          platform: Platform.OS,
+          source: "manual",
+        },
       }
 
       console.log("Updating transaction with data:", apiData) // Debug log
 
-      await updateScheduledTransaction(id, apiData)
+      const result = await updateScheduledTransaction(id, apiData)
 
-      Alert.alert("Success", "Scheduled transaction updated successfully!", [
-        { text: "OK", onPress: () => router.back() },
-      ])
+      if (result.success) {
+        Alert.alert("Success", "Scheduled transaction updated successfully!", [
+          { text: "OK", onPress: () => router.back() },
+        ])
+      } else {
+        Alert.alert(
+          "Error",
+          result.message || "Failed to update scheduled transaction"
+        )
+      }
     } catch (error) {
       console.error("Error updating scheduled transaction:", error)
-
       // Extract error message from different error structures
       let errorMessage = "Failed to update scheduled transaction"
 
@@ -917,7 +946,7 @@ export default function EditScheduledTransactionScreen() {
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Executed:</Text>
                   <Text style={styles.infoValue}>
-                    {transaction.executionCount} times
+                    {transaction.executionCount || 0} times
                   </Text>
                 </View>
                 {transaction.lastExecuted && (
@@ -931,7 +960,7 @@ export default function EditScheduledTransactionScreen() {
                 <View style={styles.infoRow}>
                   <Text style={styles.infoLabel}>Next Due:</Text>
                   <Text style={styles.infoValue}>
-                    {formatDate(transaction.nextDueDate)}
+                    {formatDate(transaction.nextRunDate)}
                   </Text>
                 </View>
               </View>
@@ -970,12 +999,7 @@ export default function EditScheduledTransactionScreen() {
               </View>
               <View style={styles.previewRow}>
                 <Text style={styles.previewLabel}>Status:</Text>
-                <Text
-                  style={[
-                    styles.previewValue,
-                    { color: getSelectedItem("status")?.color },
-                  ]}
-                >
+                <Text style={styles.previewValue}>
                   {getSelectedItem("status")?.label}
                 </Text>
               </View>
@@ -989,7 +1013,7 @@ export default function EditScheduledTransactionScreen() {
           "category",
           "Select Category",
           currentCategories,
-          "_id",
+          "id", // Fixed: use "id" instead of "_id"
           "label"
         )}
         {renderModal("account", "Select Account", accounts, "id", "name")}

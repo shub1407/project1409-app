@@ -131,6 +131,51 @@ export const migration001 = {
           FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
         )
       `)
+      //creating scheduled_execution
+      // Add to your migration001 after schedule_transactions table
+      await db.execAsync(`
+  CREATE TABLE IF NOT EXISTS scheduled_transaction_executions (
+    id TEXT PRIMARY KEY,
+    scheduled_transaction_id TEXT NOT NULL,
+    transaction_id TEXT NOT NULL,
+    executed_at INTEGER NOT NULL,
+    amount REAL NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('success', 'failed', 'skipped')),
+    failure_reason TEXT,
+    execution_type TEXT DEFAULT 'automatic' CHECK (execution_type IN ('automatic', 'manual')),
+    
+    -- Account balances at time of execution
+    account_balance_before REAL,
+    account_balance_after REAL,
+    to_account_balance_before REAL,
+    to_account_balance_after REAL,
+    
+    -- Metadata
+    metadata TEXT DEFAULT '{}',
+    
+    -- Standard fields
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    is_deleted INTEGER DEFAULT 0,
+    
+    -- Sync fields
+    cloud_id TEXT,
+    sync_status TEXT DEFAULT 'pending_create',
+    last_synced INTEGER DEFAULT 0,
+    version INTEGER DEFAULT 1,
+
+    FOREIGN KEY (scheduled_transaction_id) REFERENCES schedule_transactions(id) ON DELETE CASCADE,
+    FOREIGN KEY (transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+  )
+`)
+
+      // Add indexes for the execution log table
+      await db.execAsync(`
+  CREATE INDEX IF NOT EXISTS idx_scheduled_executions_scheduled_txn ON scheduled_transaction_executions(scheduled_transaction_id);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_executions_executed_at ON scheduled_transaction_executions(executed_at);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_executions_status ON scheduled_transaction_executions(status);
+  CREATE INDEX IF NOT EXISTS idx_scheduled_executions_transaction_id ON scheduled_transaction_executions(transaction_id);
+`)
 
       // Create indexes for better performance
       await db.execAsync(`
