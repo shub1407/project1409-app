@@ -54,7 +54,7 @@ export default function AccountsScreen() {
       const result = await getTransactions({ limit: 5 })
       if (result.success) {
         const transactions = result?.data?.transactions
-        console.log("Loaded transaction:: ", transactions)
+
         setTransactions(transactions || [])
       }
     } catch (error) {
@@ -85,8 +85,9 @@ export default function AccountsScreen() {
     router.push("/users/home/add-account")
   }
 
-  const handleViewRecords = () => {
-    console.log("View records pressed")
+  const handleDebugDb = () => {
+    console.log("Debug DB pressed")
+    router.push("/users/home/debug-db")
   }
 
   const handleSettingsPress = () => {
@@ -222,6 +223,12 @@ export default function AccountsScreen() {
             loading={transactionsLoading}
             onViewAll={handleViewAllTransactions}
           />
+          <TouchableOpacity
+            style={styles.recordsButton}
+            onPress={handleDebugDb}
+          >
+            <Text style={styles.recordsButtonText}>Debug DB</Text>
+          </TouchableOpacity>
         </Animated.ScrollView>
       </SafeAreaView>
     </>

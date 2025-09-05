@@ -1,4 +1,6 @@
 // repositories/TransactionRepository.js
+
+import { SplitBudgetOperationQueue } from "../../services/sync/SplitBudgetOperationQueue"
 import { toCamelCase, toSnakeCase } from "../../utility/caseMapper.js"
 import { Logger } from "../../utility/logger.js"
 import { Result } from "../../utility/Result.js"
@@ -7,6 +9,81 @@ import { BaseRepository } from "./BaseRepository.js"
 export class TransactionRepository extends BaseRepository {
   constructor(db) {
     super(db, "transactions")
+  }
+
+  // ✅ Enhanced: Detect CREATE dependencies for transactions
+  detectCreateDependencies(recordData) {
+    const dependencies = []
+
+    // Always depends on account
+    if (recordData.account_id) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: recordData.account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    // Depends on category if specified
+    if (recordData.category_id) {
+      dependencies.push({
+        tableName: "categories",
+        recordId: recordData.category_id,
+        operationType: "CREATE",
+      })
+    }
+
+    // For transfers, depends on destination account
+    if (recordData.type === "transfer" && recordData.to_account_id) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: recordData.to_account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    return dependencies
+  }
+
+  // ✅ Enhanced: Detect UPDATE dependencies for transactions
+  detectUpdateDependencies(updateData, existingData) {
+    const dependencies = []
+
+    // Only add dependencies for fields that are being updated
+    if (
+      updateData.account_id &&
+      updateData.account_id !== existingData.account_id
+    ) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: updateData.account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    if (
+      updateData.category_id &&
+      updateData.category_id !== existingData.category_id
+    ) {
+      dependencies.push({
+        tableName: "categories",
+        recordId: updateData.category_id,
+        operationType: "CREATE",
+      })
+    }
+
+    if (
+      updateData.to_account_id &&
+      updateData.to_account_id !== existingData.to_account_id
+    ) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: updateData.to_account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    return dependencies
   }
 
   // Helper method to ensure timestamp format
@@ -21,6 +98,57 @@ export class TransactionRepository extends BaseRepository {
   // Helper method to format dates for frontend
   formatDateForFrontend(timestamp) {
     return new Date(timestamp).toISOString()
+  }
+
+  // ✅ Enhanced: Helper method to queue account sync operations
+  async queueAccountSyncOperation(operationType, recordId, recordData) {
+    const operationQueue = new SplitBudgetOperationQueue(this.db)
+    await operationQueue.addOperation(
+      operationType,
+      "accounts",
+      recordId,
+      recordData,
+      [] // Accounts don't have dependencies
+    )
+  }
+
+  // ✅ Enhanced: adjustAccountBalance with sync queue
+  async adjustAccountBalance(accountId, amount) {
+    if (!accountId || amount === 0) return
+
+    const accountName = await this.getAccountName(accountId)
+    console.log("adjusting account balance:", accountId, accountName, amount)
+
+    // Get current account data before update
+    const currentAccount = await this.db.getFirstAsync(
+      `SELECT * FROM accounts WHERE id = ? AND is_deleted = 0`,
+      [accountId]
+    )
+
+    if (!currentAccount) {
+      throw new Error(`Account ${accountId} not found`)
+    }
+
+    // Update account balance
+    await this.db.runAsync(
+      `UPDATE accounts SET
+        balance = balance + ?,
+        updated_at = ?,
+        sync_status = CASE WHEN sync_status = 'synced' THEN 'pending_update' ELSE sync_status END,
+        version = version + 1
+       WHERE id = ?`,
+      [amount, Date.now(), accountId]
+    )
+
+    // ✅ Get updated account data and queue sync operation
+    const updatedAccount = await this.db.getFirstAsync(
+      `SELECT * FROM accounts WHERE id = ? AND is_deleted = 0`,
+      [accountId]
+    )
+
+    if (updatedAccount) {
+      await this.queueAccountSyncOperation("UPDATE", accountId, updatedAccount)
+    }
   }
 
   async getTransactions(options = {}) {
@@ -60,25 +188,23 @@ export class TransactionRepository extends BaseRepository {
         params.push(startTimestamp, endTimestamp)
       }
 
-      // Get initial balances for all accounts (similar to Express controller)
+      // Get initial balances for all accounts
       const accountsMap = {}
       const accountQuery = accountId
         ? "SELECT id, initial_balance FROM accounts WHERE id = ? AND is_deleted = 0"
         : "SELECT id, initial_balance FROM accounts WHERE is_deleted = 0"
-
       const accountParams = accountId ? [accountId] : []
       const accounts = await this.db.getAllAsync(accountQuery, accountParams)
-
       accounts.forEach((acc) => {
         accountsMap[acc.id] = acc.initial_balance || 0
       })
 
-      // Step 1: Get transactions with basic info (for running balance calculation)
+      // Get transactions with running balance calculation
       const runningBalanceQuery = `
         WITH filtered_transactions AS (
-          SELECT 
+          SELECT
             t.*,
-            CASE 
+            CASE
               WHEN t.type = 'income' THEN t.amount
               WHEN t.type = 'expense' THEN -t.amount
               WHEN t.type = 'transfer' AND t.to_account_id != t.account_id THEN -t.amount
@@ -86,23 +212,22 @@ export class TransactionRepository extends BaseRepository {
             END as signed_amount
           FROM transactions t
           WHERE ${whereClause}
-            -- Keep only "from" side for transfers (like MongoDB controller)
-            AND (
-              t.type != 'transfer' 
-              OR (t.type = 'transfer' AND t.to_account_id != t.account_id)
-            )
+          AND (
+            t.type != 'transfer'
+            OR (t.type = 'transfer' AND t.to_account_id != t.account_id)
+          )
         ),
         transactions_with_running_total AS (
-          SELECT 
+          SELECT
             *,
             SUM(signed_amount) OVER (
-              PARTITION BY account_id 
-              ORDER BY date ASC, created_at ASC 
+              PARTITION BY account_id
+              ORDER BY date ASC, created_at ASC
               ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
             ) as running_total
           FROM filtered_transactions
         )
-        SELECT 
+        SELECT
           t.*,
           t.running_total,
           (t.running_total - t.signed_amount) as opening_balance_calc,
@@ -116,7 +241,7 @@ export class TransactionRepository extends BaseRepository {
           c.color as category_color
         FROM transactions_with_running_total t
         LEFT JOIN accounts a ON t.account_id = a.id AND a.is_deleted = 0
-        LEFT JOIN accounts ta ON t.to_account_id = ta.id AND ta.is_deleted = 0  
+        LEFT JOIN accounts ta ON t.to_account_id = ta.id AND ta.is_deleted = 0
         LEFT JOIN categories c ON t.category_id = c.id AND c.is_deleted = 0
         ORDER BY t.date DESC, t.created_at DESC
         LIMIT ? OFFSET ?
@@ -124,7 +249,6 @@ export class TransactionRepository extends BaseRepository {
 
       const offset = (page - 1) * limit
       const queryParams = [...params, limit, offset]
-
       const transactions = await this.db.getAllAsync(
         runningBalanceQuery,
         queryParams
@@ -133,22 +257,18 @@ export class TransactionRepository extends BaseRepository {
       // Format transactions with correct balances and date formatting
       const formattedTransactions = transactions.map((tx) => {
         const initialBalance = accountsMap[tx.account_id] || 0
-
         return {
           ...tx,
-          // Add initial balance to running calculations (like Express controller)
           openingBalance: Number(
             initialBalance + (tx.opening_balance_calc || 0)
           ).toFixed(2),
           closingBalance: Number(
             initialBalance + (tx.closing_balance_calc || 0)
           ).toFixed(2),
-          // Format dates for frontend
           date: this.formatDateForFrontend(tx.date),
           createdAt: this.formatDateForFrontend(tx.created_at),
           updatedAt: this.formatDateForFrontend(tx.updated_at),
-          // Fix category name mapping
-          categoryName: tx.category_label, // Use category_label from join
+          categoryName: tx.category_label,
           accountName: tx.account_name,
           toAccountName: tx.to_account_name,
           categoryIcon: tx.category_icon,
@@ -156,17 +276,18 @@ export class TransactionRepository extends BaseRepository {
         }
       })
 
-      // Get total count (same filter as main query)
+      // Get total count
       const countQuery = `
-        SELECT COUNT(*) as total 
-        FROM transactions t 
+        SELECT COUNT(*) as total
+        FROM transactions t
         WHERE ${whereClause}
-          AND (
-            t.type != 'transfer' 
-            OR (t.type = 'transfer' AND t.to_account_id != t.account_id)
-          )
+        AND (
+          t.type != 'transfer'
+          OR (t.type = 'transfer' AND t.to_account_id != t.account_id)
+        )
       `
-      const countParams = params // Don't slice since we don't have limit/offset here
+
+      const countParams = params
       const countResult = await this.db.getFirstAsync(countQuery, countParams)
 
       return Result.ok(
@@ -184,7 +305,7 @@ export class TransactionRepository extends BaseRepository {
     }
   }
 
-  // Handle transfer transactions
+  // ✅ Enhanced: Handle transfer transactions with proper sync queueing
   async createTransfer(transferData) {
     try {
       const { accountId, toAccountId, amount, description, date } = transferData
@@ -220,26 +341,9 @@ export class TransactionRepository extends BaseRepository {
       })
 
       if (transaction.success) {
-        // Update both account balances
-        await this.db.runAsync(
-          `UPDATE accounts SET 
-             balance = balance - ?, 
-             updated_at = ?,
-             sync_status = CASE WHEN sync_status = 'synced' THEN 'pending_update' ELSE sync_status END,
-             version = version + 1
-           WHERE id = ?`,
-          [amount, Date.now(), accountId]
-        )
-
-        await this.db.runAsync(
-          `UPDATE accounts SET 
-             balance = balance + ?, 
-             updated_at = ?,
-             sync_status = CASE WHEN sync_status = 'synced' THEN 'pending_update' ELSE sync_status END,
-             version = version + 1
-           WHERE id = ?`,
-          [amount, Date.now(), toAccountId]
-        )
+        // ✅ Use adjustAccountBalance which now queues sync operations
+        await this.adjustAccountBalance(accountId, -amount)
+        await this.adjustAccountBalance(toAccountId, amount)
 
         // Return formatted result
         const formattedResult = {
@@ -280,21 +384,12 @@ export class TransactionRepository extends BaseRepository {
       const result = await this.create(processedData)
 
       if (result.success) {
-        // Update account balance
+        // ✅ Use adjustAccountBalance which now queues sync operations
         const balanceChange =
           processedData.type === "income"
             ? processedData.amount
             : -processedData.amount
-
-        await this.db.runAsync(
-          `UPDATE accounts SET 
-             balance = balance + ?, 
-             updated_at = ?,
-             sync_status = CASE WHEN sync_status = 'synced' THEN 'pending_update' ELSE sync_status END,
-             version = version + 1
-           WHERE id = ?`,
-          [balanceChange, Date.now(), processedData.accountId]
-        )
+        await this.adjustAccountBalance(processedData.accountId, balanceChange)
 
         await this.db.execAsync("COMMIT")
 
@@ -352,6 +447,7 @@ export class TransactionRepository extends BaseRepository {
         // Apply new balance effects
         const newTx = { ...oldTx, ...updateData }
         await this.applyTransactionBalance(newTx)
+
         await this.db.execAsync("COMMIT")
 
         // Format result for frontend
@@ -411,7 +507,7 @@ export class TransactionRepository extends BaseRepository {
     }
   }
 
-  // Helper: Reverse transaction balance effects
+  // ✅ Use adjustAccountBalance which now queues sync operations
   async reverseTransactionBalance(tx) {
     Logger.info("Reversing balance for transaction:", tx)
     if (tx.type === "income") {
@@ -424,7 +520,7 @@ export class TransactionRepository extends BaseRepository {
     }
   }
 
-  // Helper: Apply transaction balance effects
+  // ✅ Use adjustAccountBalance which now queues sync operations
   async applyTransactionBalance(tx) {
     if (tx.type === "income") {
       await this.adjustAccountBalance(tx.account_id, tx.amount)
@@ -434,25 +530,6 @@ export class TransactionRepository extends BaseRepository {
       await this.adjustAccountBalance(tx.account_id, -tx.amount) // remove from source
       await this.adjustAccountBalance(tx.to_account_id, tx.amount) // add to target
     }
-  }
-
-  // Helper: Adjust account balance
-  async adjustAccountBalance(accountId, amount) {
-    if (!accountId || amount === 0) return
-
-    const accountName = await this.getAccountName(accountId)
-
-    console.log("adjusting account balance:", accountId, accountName, amount)
-
-    await this.db.runAsync(
-      `UPDATE accounts SET 
-         balance = balance + ?, 
-         updated_at = ?,
-         sync_status = CASE WHEN sync_status = 'synced' THEN 'pending_update' ELSE sync_status END,
-         version = version + 1
-       WHERE id = ?`,
-      [amount, Date.now(), accountId]
-    )
   }
 
   async getAccountName(accountId) {
@@ -495,7 +572,6 @@ export class TransactionRepository extends BaseRepository {
   // Get transaction statistics
   async getTransactionStats(options = {}) {
     const { startDate, endDate, userId } = options
-
     try {
       let whereClause = "is_deleted = 0"
       const params = []
@@ -509,26 +585,26 @@ export class TransactionRepository extends BaseRepository {
       }
 
       const stats = await this.db.getAllAsync(
-        `SELECT 
-           type,
-           SUM(amount) as total,
-           COUNT(*) as count
-         FROM transactions 
-         WHERE ${whereClause}
-         GROUP BY type`,
+        `SELECT
+          type,
+          SUM(amount) as total,
+          COUNT(*) as count
+        FROM transactions
+        WHERE ${whereClause}
+        GROUP BY type`,
         params
       )
 
       const categoryStats = await this.db.getAllAsync(
-        `SELECT 
-           t.type,
-           c.label as category,
-           SUM(t.amount) as total,
-           COUNT(*) as count
-         FROM transactions t
-         LEFT JOIN categories c ON t.category_id = c.id
-         WHERE t.${whereClause}
-         GROUP BY t.type, t.category_id, c.label`,
+        `SELECT
+          t.type,
+          c.label as category,
+          SUM(t.amount) as total,
+          COUNT(*) as count
+        FROM transactions t
+        LEFT JOIN categories c ON t.category_id = c.id
+        WHERE t.${whereClause}
+        GROUP BY t.type, t.category_id, c.label`,
         params
       )
 
@@ -549,7 +625,7 @@ export class TransactionRepository extends BaseRepository {
   async getPendingSyncOperations() {
     try {
       const operations = await this.db.getAllAsync(
-        `SELECT * FROM sync_operations 
+        `SELECT * FROM sync_operations
          WHERE status = 'pending' AND table_name = ?
          ORDER BY created_at ASC`,
         [this.tableName]
@@ -568,6 +644,7 @@ export class TransactionRepository extends BaseRepository {
         `UPDATE sync_operations SET status = 'completed' WHERE id = ?`,
         [operationId]
       )
+
       return Result.ok(null, "Sync operation marked as completed")
     } catch (error) {
       return Result.fail(error.message, "Failed to mark sync as completed")

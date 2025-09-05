@@ -9,13 +9,16 @@ class AuthService {
    */
   async login(email, password) {
     try {
-      const result = await apiClient.post(ENDPOINTS.AUTH.LOGIN, {
+      let result = await apiClient.post(ENDPOINTS.AUTH.LOGIN, {
         email,
         password,
       })
-
+      result = result.data
+      console.log("Result of login:: ", result.data)
       if (result.success) {
-        const { token, user, refreshToken } = result.data
+        const { tokens, user } = result.data
+        const token = tokens.accessToken
+        const refreshToken = tokens.refreshToken
 
         // Store authentication data
         await this.storeAuthData(token, user, refreshToken)
@@ -39,7 +42,8 @@ class AuthService {
    */
   async register(userData) {
     try {
-      const result = await apiClient.post(ENDPOINTS.AUTH.REGISTER, userData)
+      let result = await apiClient.post(ENDPOINTS.AUTH.REGISTER, userData)
+      result = result.data
 
       if (result.success) {
         const { token, user, refreshToken } = result.data
@@ -206,6 +210,7 @@ class AuthService {
    * Store authentication data securely
    */
   async storeAuthData(token, user, refreshToken = null) {
+    console.log("Storing auth data:: ", { token, user, refreshToken })
     try {
       const promises = [
         SecureStore.setItemAsync(STORAGE_KEYS.USER_TOKEN, token),

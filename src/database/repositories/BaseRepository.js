@@ -1,4 +1,6 @@
 // repositories/BaseRepository.js
+
+import { SplitBudgetOperationQueue } from "../../services/sync/SplitBudgetOperationQueue"
 import { toCamelCase, toSnakeCase } from "../../utility/caseMapper.js"
 import { Logger } from "../../utility/logger"
 import { Result } from "../../utility/Result.js"
@@ -39,7 +41,6 @@ export class BaseRepository {
       })
 
       Logger.info(`Creating record in ${this.tableName}: `, recordData)
-
       const columns = Object.keys(recordData)
       const placeholders = columns.map(() => "?").join(", ")
       const values = columns.map((col) => recordData[col])
@@ -51,7 +52,9 @@ export class BaseRepository {
         values
       )
 
-      await this.queueSyncOperation("CREATE", id, recordData)
+      // ✅ Enhanced: Detect dependencies and queue sync operation
+      const dependencies = this.detectCreateDependencies(recordData)
+      await this.queueSyncOperation("CREATE", id, recordData, dependencies)
 
       // Convert to camelCase for frontend
       const result = toCamelCase(recordData)
@@ -68,6 +71,7 @@ export class BaseRepository {
         `SELECT * FROM ${this.tableName} WHERE id = ? AND is_deleted = 0`,
         [id]
       )
+
       return Result.ok(
         toCamelCase(row || {}),
         row ? "Record fetched successfully" : "Record not found"
@@ -107,6 +111,7 @@ export class BaseRepository {
         `SELECT * FROM ${this.tableName} WHERE id = ? AND is_deleted = 0`,
         [id]
       )
+
       if (!existingRecord)
         return Result.fail(null, `${this.tableName} with id ${id} not found`)
 
@@ -128,9 +133,16 @@ export class BaseRepository {
         `UPDATE ${this.tableName} SET ${setClause} WHERE id = ?`,
         values
       )
+
       const updatedRecord = { ...existingRecord, ...updateData }
 
-      await this.queueSyncOperation("UPDATE", id, updatedRecord)
+      // ✅ Enhanced: Detect dependencies for updates
+      const dependencies = this.detectUpdateDependencies(
+        updateData,
+        existingRecord
+      )
+      await this.queueSyncOperation("UPDATE", id, updatedRecord, dependencies)
+
       return Result.ok(
         toCamelCase(updatedRecord),
         "Record updated successfully"
@@ -148,6 +160,7 @@ export class BaseRepository {
         `SELECT * FROM ${this.tableName} WHERE id = ? AND is_deleted = 0`,
         [id]
       )
+
       if (!existingRecord)
         return Result.fail(null, `${this.tableName} with id ${id} not found`)
 
@@ -155,8 +168,9 @@ export class BaseRepository {
         `UPDATE ${this.tableName} SET is_deleted = 1, updated_at = ?, sync_status = ? WHERE id = ?`,
         [timestamp, "pending_delete", id]
       )
-      await this.queueSyncOperation("DELETE", id, existingRecord)
 
+      // ✅ Delete operations typically don't need dependencies
+      await this.queueSyncOperation("DELETE", id, existingRecord, [])
       return Result.ok({ id }, "Record deleted successfully")
     } catch (err) {
       Logger.error(err)
@@ -164,24 +178,29 @@ export class BaseRepository {
     }
   }
 
-  // ---------------- SYNC METHODS ----------------
-  async queueSyncOperation(operationType, recordId, recordData) {
-    const operationId = this.generateId()
-    await this.db.runAsync(
-      `
-      INSERT INTO sync_operations (
-        id, operation_type, table_name, record_id, record_data, 
-        created_at, status
-      ) VALUES (?, ?, ?, ?, ?, ?, 'pending')
-    `,
-      [
-        operationId,
-        operationType,
-        this.tableName,
-        recordId,
-        JSON.stringify(recordData),
-        Date.now(),
-      ]
+  // ✅ Enhanced sync operation queueing
+  async queueSyncOperation(
+    operationType,
+    recordId,
+    recordData,
+    dependencies = []
+  ) {
+    const operationQueue = new SplitBudgetOperationQueue(this.db)
+    await operationQueue.addOperation(
+      operationType,
+      this.tableName,
+      recordId,
+      recordData,
+      dependencies
     )
+  }
+
+  // ✅ Base dependency detection methods - override in child classes
+  detectCreateDependencies(recordData) {
+    return [] // Base implementation - no dependencies
+  }
+
+  detectUpdateDependencies(updateData, existingData) {
+    return [] // Base implementation - no dependencies
   }
 }

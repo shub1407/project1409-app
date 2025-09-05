@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons"
-import axios from "axios"
 import { Link, router } from "expo-router"
 import { useState } from "react"
 import {
@@ -15,7 +14,6 @@ import {
   View,
 } from "react-native"
 import { useAuth } from "../../src/context/AuthContext"
-import { baseUrl } from "../../src/utility/constant"
 export default function SignupScreen() {
   const [formData, setFormData] = useState({
     name: "",
@@ -29,7 +27,7 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
 
-  const { signIn } = useAuth()
+  const { signIn, signUp } = useAuth()
 
   const validatePhone = (phone) => {
     // Basic Indian phone number validation (10 digits)
@@ -67,14 +65,9 @@ export default function SignupScreen() {
 
     setLoading(true)
     try {
-      const response = await axios.post(`${baseUrl}/auth/signup`, {
-        name,
-        phone,
-        email,
-        password,
-      })
+      const response = await signUp({ name, phone, email, password })
 
-      if (response.status === 200 || response.status === 201) {
+      if (response.success) {
         // Auto-login after successful signup
         const loginResult = await signIn(email, password)
         if (loginResult.success) {

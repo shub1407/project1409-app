@@ -1,10 +1,20 @@
 // repositories/AccountRepository.js
+
 import { Result } from "../../utility/Result.js"
 import { BaseRepository } from "./BaseRepository.js"
 
 export class AccountRepository extends BaseRepository {
   constructor(db) {
     super(db, "accounts")
+  }
+
+  // ✅ Accounts typically don't have dependencies (they're root entities)
+  detectCreateDependencies(recordData) {
+    return [] // Accounts don't depend on other entities
+  }
+
+  detectUpdateDependencies(updateData, existingData) {
+    return [] // Account updates don't create new dependencies
   }
 
   // Get accounts by type
@@ -18,10 +28,9 @@ export class AccountRepository extends BaseRepository {
   // Update account balance
   async updateBalance(id, newBalance) {
     const account = await this.findById(id)
-    if (!account) {
+    if (!account.success || !account.data.id) {
       throw new Error("Account not found")
     }
-
     return await this.update(id, { balance: newBalance })
   }
 
@@ -37,7 +46,6 @@ export class AccountRepository extends BaseRepository {
   // Reorder accounts
   async reorderAccounts(accountOrders) {
     await this.db.execAsync("BEGIN TRANSACTION")
-
     try {
       for (const { id, order } of accountOrders) {
         await this.update(id, { order_index: order })
@@ -56,6 +64,7 @@ export class AccountRepository extends BaseRepository {
     const accounts = await this.findAll({
       orderBy: "order_index ASC, name ASC",
     })
+
     const totalBalance = await this.db.getFirstAsync(
       `SELECT SUM(balance) as total FROM accounts WHERE is_deleted = 0`
     )

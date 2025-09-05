@@ -1,3 +1,4 @@
+import { SplitBudgetOperationQueue } from "../../services/sync/SplitBudgetOperationQueue"
 import {
   snakifyKey,
   toCamelCase,
@@ -10,6 +11,81 @@ import { BaseRepository } from "./BaseRepository.js"
 export class ScheduledTransactionRepository extends BaseRepository {
   constructor(db) {
     super(db, "schedule_transactions")
+  }
+
+  // ✅ Enhanced: Detect CREATE dependencies for scheduled transactions
+  detectCreateDependencies(recordData) {
+    const dependencies = []
+
+    // Always depends on account
+    if (recordData.account_id) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: recordData.account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    // Depends on category if specified
+    if (recordData.category_id) {
+      dependencies.push({
+        tableName: "categories",
+        recordId: recordData.category_id,
+        operationType: "CREATE",
+      })
+    }
+
+    // For transfers, depends on destination account
+    if (recordData.to_account_id) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: recordData.to_account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    return dependencies
+  }
+
+  // ✅ Enhanced: Detect UPDATE dependencies for scheduled transactions
+  detectUpdateDependencies(updateData, existingData) {
+    const dependencies = []
+
+    // Only add dependencies for fields that are being updated
+    if (
+      updateData.account_id &&
+      updateData.account_id !== existingData.account_id
+    ) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: updateData.account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    if (
+      updateData.category_id &&
+      updateData.category_id !== existingData.category_id
+    ) {
+      dependencies.push({
+        tableName: "categories",
+        recordId: updateData.category_id,
+        operationType: "CREATE",
+      })
+    }
+
+    if (
+      updateData.to_account_id &&
+      updateData.to_account_id !== existingData.to_account_id
+    ) {
+      dependencies.push({
+        tableName: "accounts",
+        recordId: updateData.to_account_id,
+        operationType: "CREATE",
+      })
+    }
+
+    return dependencies
   }
 
   async create(data) {
@@ -71,7 +147,9 @@ export class ScheduledTransactionRepository extends BaseRepository {
         values
       )
 
-      await this.queueSyncOperation("CREATE", id, recordData)
+      // ✅ Enhanced: Detect dependencies and queue sync operation
+      const dependencies = this.detectCreateDependencies(recordData)
+      await this.queueSyncOperation("CREATE", id, recordData, dependencies)
 
       // Convert to camelCase and parse JSON fields for frontend
       const result = this.parseJsonFields(toCamelCase(recordData))
@@ -83,36 +161,35 @@ export class ScheduledTransactionRepository extends BaseRepository {
   }
 
   // Override findById to handle JSON fields
-  // Enhanced version with more details
   async findById(id) {
     try {
       const query = `
-      SELECT st.*, 
-             c.label as category_label,
-             c.icon as category_icon,
-             c.color as category_color,
-             a.name as account_name,
-             a.balance as account_balance,
-             a.icon as account_icon,
-             a.color as account_color,
-             ta.name as to_account_name,
-             ta.balance as to_account_balance,
-             ta.icon as to_account_icon,
-             ta.color as to_account_color,
-             CASE 
-               WHEN st.next_run_date < ? AND st.status = 'active' AND st.is_active = 1 THEN 1 
-               ELSE 0 
-             END as is_overdue,
-             CASE 
-               WHEN st.next_run_date BETWEEN ? AND ? THEN 1 
-               ELSE 0 
-             END as is_due_soon
-      FROM ${this.tableName} st
-      LEFT JOIN categories c ON st.category_id = c.id
-      LEFT JOIN accounts a ON st.account_id = a.id
-      LEFT JOIN accounts ta ON st.to_account_id = ta.id
-      WHERE st.id = ? AND st.is_deleted = 0
-    `
+        SELECT st.*,
+               c.label as category_label,
+               c.icon as category_icon,
+               c.color as category_color,
+               a.name as account_name,
+               a.balance as account_balance,
+               a.icon as account_icon,
+               a.color as account_color,
+               ta.name as to_account_name,
+               ta.balance as to_account_balance,
+               ta.icon as to_account_icon,
+               ta.color as to_account_color,
+               CASE
+                 WHEN st.next_run_date < ? AND st.status = 'active' AND st.is_active = 1 THEN 1
+                 ELSE 0
+               END as is_overdue,
+               CASE
+                 WHEN st.next_run_date BETWEEN ? AND ? THEN 1
+                 ELSE 0
+               END as is_due_soon
+        FROM ${this.tableName} st
+        LEFT JOIN categories c ON st.category_id = c.id
+        LEFT JOIN accounts a ON st.account_id = a.id
+        LEFT JOIN accounts ta ON st.to_account_id = ta.id
+        WHERE st.id = ? AND st.is_deleted = 0
+      `
 
       const now = Date.now()
       const soonThreshold = now + 7 * 24 * 60 * 60 * 1000 // 7 days from now
@@ -198,16 +275,16 @@ export class ScheduledTransactionRepository extends BaseRepository {
 
       // Join with accounts and categories to get labels/names
       let query = `
-      SELECT st.*, 
-             c.label as category_label, 
-             a.name as account_name,
-             ta.name as to_account_name
-      FROM ${this.tableName} st
-      LEFT JOIN categories c ON st.category_id = c.id
-      LEFT JOIN accounts a ON st.account_id = a.id
-      LEFT JOIN accounts ta ON st.to_account_id = ta.id
-      WHERE st.is_deleted = 0
-    `
+        SELECT st.*,
+               c.label as category_label,
+               a.name as account_name,
+               ta.name as to_account_name
+        FROM ${this.tableName} st
+        LEFT JOIN categories c ON st.category_id = c.id
+        LEFT JOIN accounts a ON st.account_id = a.id
+        LEFT JOIN accounts ta ON st.to_account_id = ta.id
+        WHERE st.is_deleted = 0
+      `
       const params = []
 
       // Add filters
@@ -248,13 +325,13 @@ export class ScheduledTransactionRepository extends BaseRepository {
 
       // Get total count (same JOINs for consistency)
       let countQuery = `
-      SELECT COUNT(*) as total 
-      FROM ${this.tableName} st
-      LEFT JOIN categories c ON st.category_id = c.id
-      LEFT JOIN accounts a ON st.account_id = a.id
-      LEFT JOIN accounts ta ON st.to_account_id = ta.id
-      WHERE st.is_deleted = 0
-    `
+        SELECT COUNT(*) as total
+        FROM ${this.tableName} st
+        LEFT JOIN categories c ON st.category_id = c.id
+        LEFT JOIN accounts a ON st.account_id = a.id
+        LEFT JOIN accounts ta ON st.to_account_id = ta.id
+        WHERE st.is_deleted = 0
+      `
       const countParams = []
 
       // Apply same filters for count
@@ -378,8 +455,8 @@ export class ScheduledTransactionRepository extends BaseRepository {
       const futureDate = Date.now() + days * 24 * 60 * 60 * 1000
 
       const rows = await this.db.getAllAsync(
-        `SELECT * FROM ${this.tableName} 
-         WHERE is_active = 1 AND is_deleted = 0 
+        `SELECT * FROM ${this.tableName}
+         WHERE is_active = 1 AND is_deleted = 0
          AND next_run_date <= ? AND next_run_date > ?
          ORDER BY next_run_date ASC`,
         [futureDate, Date.now()]
@@ -398,7 +475,7 @@ export class ScheduledTransactionRepository extends BaseRepository {
   async getOverdue() {
     try {
       const rows = await this.db.getAllAsync(
-        `SELECT * FROM ${this.tableName} 
+        `SELECT * FROM ${this.tableName}
          WHERE is_active = 1 AND is_deleted = 0 AND next_run_date < ?
          ORDER BY next_run_date ASC`,
         [Date.now()]
@@ -419,45 +496,45 @@ export class ScheduledTransactionRepository extends BaseRepository {
       const now = Date.now()
 
       const statsQuery = `
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN status = 'active' AND is_active = 1 THEN 1 ELSE 0 END) as active,
-        SUM(CASE WHEN status = 'paused' OR is_active = 0 THEN 1 ELSE 0 END) as paused,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
-        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
-        
-        -- Only include ACTIVE transactions in monthly totals (exclude paused/inactive)
-        COALESCE(SUM(CASE 
-          WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'monthly' THEN amount
-          WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'yearly' THEN amount / 12
-          WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'weekly' THEN amount * 4.33
-          WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'daily' THEN amount * 30
-          ELSE 0 
-        END), 0) as total_monthly_income,
-        
-        COALESCE(SUM(CASE 
-          WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'monthly' THEN amount
-          WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'yearly' THEN amount / 12
-          WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'weekly' THEN amount * 4.33
-          WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'daily' THEN amount * 30
-          ELSE 0 
-        END), 0) as total_monthly_expenses,
-        
-        -- Transaction type counts (only active)
-        SUM(CASE WHEN (status = 'active' AND is_active = 1) AND type = 'income' THEN 1 ELSE 0 END) as income_count,
-        SUM(CASE WHEN (status = 'active' AND is_active = 1) AND type = 'expense' THEN 1 ELSE 0 END) as expense_count,
-        SUM(CASE WHEN (status = 'active' AND is_active = 1) AND type = 'transfer' THEN 1 ELSE 0 END) as transfer_count,
-        
-        -- Overdue count (only active transactions can be overdue)
-        SUM(CASE WHEN (status = 'active' AND is_active = 1) AND next_run_date < ? THEN 1 ELSE 0 END) as overdue,
-        
-        -- Additional useful stats (all transactions)
-        AVG(amount) as average_amount,
-        MIN(amount) as min_amount,
-        MAX(amount) as max_amount
-        
-      FROM ${this.tableName} 
-      WHERE is_deleted = 0`
+        SELECT
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'active' AND is_active = 1 THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN status = 'paused' OR is_active = 0 THEN 1 ELSE 0 END) as paused,
+          SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+          SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+
+          -- Only include ACTIVE transactions in monthly totals (exclude paused/inactive)
+          COALESCE(SUM(CASE
+            WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'monthly' THEN amount
+            WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'yearly' THEN amount / 12
+            WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'weekly' THEN amount * 4.33
+            WHEN (status = 'active' AND is_active = 1) AND type = 'income' AND frequency = 'daily' THEN amount * 30
+            ELSE 0
+          END), 0) as total_monthly_income,
+
+          COALESCE(SUM(CASE
+            WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'monthly' THEN amount
+            WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'yearly' THEN amount / 12
+            WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'weekly' THEN amount * 4.33
+            WHEN (status = 'active' AND is_active = 1) AND type = 'expense' AND frequency = 'daily' THEN amount * 30
+            ELSE 0
+          END), 0) as total_monthly_expenses,
+
+          -- Transaction type counts (only active)
+          SUM(CASE WHEN (status = 'active' AND is_active = 1) AND type = 'income' THEN 1 ELSE 0 END) as income_count,
+          SUM(CASE WHEN (status = 'active' AND is_active = 1) AND type = 'expense' THEN 1 ELSE 0 END) as expense_count,
+          SUM(CASE WHEN (status = 'active' AND is_active = 1) AND type = 'transfer' THEN 1 ELSE 0 END) as transfer_count,
+
+          -- Overdue count (only active transactions can be overdue)
+          SUM(CASE WHEN (status = 'active' AND is_active = 1) AND next_run_date < ? THEN 1 ELSE 0 END) as overdue,
+
+          -- Additional useful stats (all transactions)
+          AVG(amount) as average_amount,
+          MIN(amount) as min_amount,
+          MAX(amount) as max_amount
+
+        FROM ${this.tableName}
+        WHERE is_deleted = 0`
 
       const row = await this.db.getFirstAsync(statsQuery, [now])
 
@@ -514,8 +591,7 @@ export class ScheduledTransactionRepository extends BaseRepository {
     }
   }
 
-  //scheduled transaction execution statistics
-  // Method to record execution (works with both approaches)
+  // ✅ Enhanced: recordExecution with proper sync queue and dependencies
   async recordExecution(scheduledTransactionId, executionData) {
     try {
       const {
@@ -534,7 +610,7 @@ export class ScheduledTransactionRepository extends BaseRepository {
       const executionId = this.generateId()
       const timestamp = Date.now()
 
-      // Record in dedicated execution log table (if using Option 2)
+      // Record in dedicated execution log table
       const executionRecord = {
         id: executionId,
         scheduledTransactionId,
@@ -568,6 +644,27 @@ export class ScheduledTransactionRepository extends BaseRepository {
         values
       )
 
+      // ✅ Enhanced: Queue sync operation with dependencies
+      const dependencies = [
+        {
+          tableName: "schedule_transactions",
+          recordId: scheduledTransactionId,
+          operationType: "CREATE",
+        },
+        {
+          tableName: "transactions",
+          recordId: transactionId,
+          operationType: "CREATE",
+        },
+      ]
+
+      await this.queueExecutionSyncOperation(
+        "CREATE",
+        executionId,
+        recordData,
+        dependencies
+      )
+
       // Also update the scheduled transaction's execution history and count
       await this.addExecutionHistory(scheduledTransactionId, {
         executionId,
@@ -588,35 +685,51 @@ export class ScheduledTransactionRepository extends BaseRepository {
     }
   }
 
-  // Get execution history for a scheduled transaction
+  // ✅ Enhanced: Helper method to queue execution sync operations with dependencies
+  async queueExecutionSyncOperation(
+    operationType,
+    recordId,
+    recordData,
+    dependencies = []
+  ) {
+    const operationQueue = new SplitBudgetOperationQueue(this.db)
+    await operationQueue.addOperation(
+      operationType,
+      "scheduled_transaction_executions",
+      recordId,
+      recordData,
+      dependencies
+    )
+  }
+
   // Get execution history for a scheduled transaction
   async getExecutionHistory(scheduledTransactionId, options = {}) {
     try {
       const { limit = 50, offset = 0, status } = options
 
       let query = `
-      SELECT 
-        se.*,
-        st.name as scheduled_transaction_name,
-        st.type as scheduled_transaction_type,
-        st.recurrence_rule,
-        st.start_date,
-        st.frequency,
-        a.name as account_name,
-        a.icon as account_icon,
-        a.color as account_color,
-        ta.name as to_account_name,
-        ta.icon as to_account_icon,
-        ta.color as to_account_color,
-        t.description as transaction_description,
-        t.date as transaction_date
-      FROM scheduled_transaction_executions se
-      LEFT JOIN schedule_transactions st ON se.scheduled_transaction_id = st.id
-      LEFT JOIN accounts a ON st.account_id = a.id
-      LEFT JOIN accounts ta ON st.to_account_id = ta.id
-      LEFT JOIN transactions t ON se.transaction_id = t.id
-      WHERE se.scheduled_transaction_id = ? AND se.is_deleted = 0
-    `
+        SELECT
+          se.*,
+          st.name as scheduled_transaction_name,
+          st.type as scheduled_transaction_type,
+          st.recurrence_rule,
+          st.start_date,
+          st.frequency,
+          a.name as account_name,
+          a.icon as account_icon,
+          a.color as account_color,
+          ta.name as to_account_name,
+          ta.icon as to_account_icon,
+          ta.color as to_account_color,
+          t.description as transaction_description,
+          t.date as transaction_date
+        FROM scheduled_transaction_executions se
+        LEFT JOIN schedule_transactions st ON se.scheduled_transaction_id = st.id
+        LEFT JOIN accounts a ON st.account_id = a.id
+        LEFT JOIN accounts ta ON st.to_account_id = ta.id
+        LEFT JOIN transactions t ON se.transaction_id = t.id
+        WHERE se.scheduled_transaction_id = ? AND se.is_deleted = 0
+      `
       const params = [scheduledTransactionId]
 
       if (status) {
@@ -643,18 +756,18 @@ export class ScheduledTransactionRepository extends BaseRepository {
   async getExecutionStats(scheduledTransactionId) {
     try {
       const statsQuery = `
-      SELECT 
-        COUNT(*) as total_executions,
-        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_executions,
-        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_executions,
-        SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_executions,
-        AVG(amount) as average_amount,
-        SUM(amount) as total_amount,
-        MIN(executed_at) as first_execution,
-        MAX(executed_at) as last_execution
-      FROM scheduled_transaction_executions
-      WHERE scheduled_transaction_id = ? AND is_deleted = 0 AND status = 'success'
-    `
+        SELECT
+          COUNT(*) as total_executions,
+          SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_executions,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_executions,
+          SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_executions,
+          AVG(amount) as average_amount,
+          SUM(amount) as total_amount,
+          MIN(executed_at) as first_execution,
+          MAX(executed_at) as last_execution
+        FROM scheduled_transaction_executions
+        WHERE scheduled_transaction_id = ? AND is_deleted = 0 AND status = 'success'
+      `
 
       const row = await this.db.getFirstAsync(statsQuery, [
         scheduledTransactionId,
@@ -669,23 +782,24 @@ export class ScheduledTransactionRepository extends BaseRepository {
       return Result.fail(err.message, "Failed to get execution statistics")
     }
   }
+
   async getRecentExecutions(limit = 10) {
     try {
       const query = `
-      SELECT 
-        se.*,
-        st.name as scheduled_transaction_name,
-        st.type as scheduled_transaction_type,
-        t.description as transaction_description,
-        a.name as account_name
-      FROM scheduled_transaction_executions se
-      LEFT JOIN schedule_transactions st ON se.scheduled_transaction_id = st.id
-      LEFT JOIN transactions t ON se.transaction_id = t.id
-      LEFT JOIN accounts a ON st.account_id = a.id
-      WHERE se.is_deleted = 0
-      ORDER BY se.executed_at DESC
-      LIMIT ?
-    `
+        SELECT
+          se.*,
+          st.name as scheduled_transaction_name,
+          st.type as scheduled_transaction_type,
+          t.description as transaction_description,
+          a.name as account_name
+        FROM scheduled_transaction_executions se
+        LEFT JOIN schedule_transactions st ON se.scheduled_transaction_id = st.id
+        LEFT JOIN transactions t ON se.transaction_id = t.id
+        LEFT JOIN accounts a ON st.account_id = a.id
+        WHERE se.is_deleted = 0
+        ORDER BY se.executed_at DESC
+        LIMIT ?
+      `
 
       const rows = await this.db.getAllAsync(query, [limit])
       const executions = rows.map((row) =>
@@ -703,29 +817,29 @@ export class ScheduledTransactionRepository extends BaseRepository {
   async getExecutionSummary() {
     try {
       const summaryQuery = `
-      SELECT 
-        COUNT(*) as total_executions,
-        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_executions,
-        SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_executions,
-        SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_executions,
-        SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END) as total_successful_amount,
-        COUNT(DISTINCT scheduled_transaction_id) as active_scheduled_transactions,
-        
-        -- Today's executions
-        SUM(CASE WHEN date(executed_at/1000, 'unixepoch') = date('now') THEN 1 ELSE 0 END) as today_executions,
-        SUM(CASE WHEN date(executed_at/1000, 'unixepoch') = date('now') AND status = 'success' THEN 1 ELSE 0 END) as today_successful,
-        
-        -- This week's executions
-        SUM(CASE WHEN executed_at >= ? THEN 1 ELSE 0 END) as week_executions,
-        SUM(CASE WHEN executed_at >= ? AND status = 'success' THEN 1 ELSE 0 END) as week_successful,
-        
-        -- This month's executions  
-        SUM(CASE WHEN executed_at >= ? THEN 1 ELSE 0 END) as month_executions,
-        SUM(CASE WHEN executed_at >= ? AND status = 'success' THEN 1 ELSE 0 END) as month_successful
-        
-      FROM scheduled_transaction_executions
-      WHERE is_deleted = 0
-    `
+        SELECT
+          COUNT(*) as total_executions,
+          SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful_executions,
+          SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_executions,
+          SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) as skipped_executions,
+          SUM(CASE WHEN status = 'success' THEN amount ELSE 0 END) as total_successful_amount,
+          COUNT(DISTINCT scheduled_transaction_id) as active_scheduled_transactions,
+
+          -- Today's executions
+          SUM(CASE WHEN date(executed_at/1000, 'unixepoch') = date('now') THEN 1 ELSE 0 END) as today_executions,
+          SUM(CASE WHEN date(executed_at/1000, 'unixepoch') = date('now') AND status = 'success' THEN 1 ELSE 0 END) as today_successful,
+
+          -- This week's executions
+          SUM(CASE WHEN executed_at >= ? THEN 1 ELSE 0 END) as week_executions,
+          SUM(CASE WHEN executed_at >= ? AND status = 'success' THEN 1 ELSE 0 END) as week_successful,
+
+          -- This month's executions
+          SUM(CASE WHEN executed_at >= ? THEN 1 ELSE 0 END) as month_executions,
+          SUM(CASE WHEN executed_at >= ? AND status = 'success' THEN 1 ELSE 0 END) as month_successful
+
+        FROM scheduled_transaction_executions
+        WHERE is_deleted = 0
+      `
 
       const now = Date.now()
       const weekStart = now - 7 * 24 * 60 * 60 * 1000

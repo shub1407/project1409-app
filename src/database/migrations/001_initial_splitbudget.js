@@ -191,19 +191,21 @@ export const migration001 = {
 
       // Create sync operations queue table
       await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS sync_operations (
-          id TEXT PRIMARY KEY,
-          operation_type TEXT NOT NULL CHECK (operation_type IN ('CREATE', 'UPDATE', 'DELETE')),
-          table_name TEXT NOT NULL CHECK (table_name IN ('accounts', 'categories', 'transactions', 'schedule_transactions')),
-          record_id TEXT NOT NULL,
-          record_data TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          retry_count INTEGER DEFAULT 0,
-          status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'retrying')),
-          error_message TEXT,
-          last_attempt INTEGER
-        )
-      `)
+  CREATE TABLE IF NOT EXISTS sync_operations (
+    id TEXT PRIMARY KEY,
+    operation_type TEXT NOT NULL CHECK (operation_type IN ('CREATE', 'UPDATE', 'DELETE')),
+    table_name TEXT NOT NULL CHECK (table_name IN ('accounts', 'categories', 'transactions', 'schedule_transactions', 'scheduled_transaction_executions')),
+    record_id TEXT NOT NULL,
+    record_data TEXT NOT NULL,
+    dependencies TEXT DEFAULT '[]', -- ✅ Add this field
+    priority INTEGER DEFAULT 10,    -- ✅ Add this field
+    created_at INTEGER NOT NULL,
+    retry_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'failed', 'retrying')),
+    error_message TEXT,
+    last_attempt INTEGER
+  )
+`)
 
       // Create indexes for better performance
       await db.execAsync(`
@@ -222,6 +224,9 @@ export const migration001 = {
         CREATE INDEX IF NOT EXISTS idx_schedule_transactions_sync_status ON schedule_transactions(sync_status);
         CREATE INDEX IF NOT EXISTS idx_sync_operations_status ON sync_operations(status);
         CREATE INDEX IF NOT EXISTS idx_sync_operations_table_record ON sync_operations(table_name, record_id);
+        -- Add indexes for better sync performance
+CREATE INDEX IF NOT EXISTS idx_sync_operations_priority_created ON sync_operations(priority, created_at);
+CREATE INDEX IF NOT EXISTS idx_sync_operations_table_record ON sync_operations(table_name, record_id);
       `)
 
       console.log(

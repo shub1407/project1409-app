@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router, useFocusEffect } from "expo-router"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -47,13 +47,7 @@ export default function ScheduledTransactionsScreen() {
       refreshData()
     }, [])
   )
-  useEffect(() => {
-    if (!hooksLoading) {
-      console.log("fetched stats from hooks:: ", stats)
 
-      console.log("from api:: ", scheduledTransactions)
-    }
-  }, [hooksLoading])
   const handleRefresh = async () => {
     setRefreshing(true)
     try {

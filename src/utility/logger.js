@@ -4,6 +4,11 @@ export class Logger {
       console.log(`ℹ️ [INFO] ${message}`, ...args)
     }
   }
+  static debug(message, ...args) {
+    if (__DEV__) {
+      console.log(`🐛 [DEBUG] ${message}`, ...args)
+    }
+  }
 
   static error(message, error, ...args) {
     if (__DEV__) {

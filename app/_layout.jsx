@@ -6,7 +6,6 @@ import { StyleSheet, Text } from "react-native"
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 import { AuthProvider } from "../src/context/AuthContext"
 import { DatabaseProvider } from "../src/database/providers/DatabaseProvider"
-
 export default function RootLayout() {
   return (
     <SafeAreaProvider>

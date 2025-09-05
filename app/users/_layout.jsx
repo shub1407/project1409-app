@@ -1,10 +1,17 @@
 import { Ionicons } from "@expo/vector-icons"
 import { Tabs } from "expo-router"
+import { useEffect } from "react"
 import { Platform, View } from "react-native"
 import { AccountsProvider } from "../../src/context/AccountContext"
 import { CategoryProvider } from "../../src/context/CategoryContext"
 import { ReportsProvider } from "../../src/context/ReportContext"
+import { useSplitBudgetSync } from "../../src/hooks/useSplitBudgetSync"
 export default function TabLayout() {
+  const { triggerSync, syncState, isReady } = useSplitBudgetSync()
+  useEffect(() => {
+    console.log("Database is ready, triggering initial sync...")
+    console.log("syncState:", syncState)
+  }, [isReady])
   return (
     <AccountsProvider>
       <CategoryProvider>
