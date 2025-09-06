@@ -17,13 +17,12 @@ import {
   View,
 } from "react-native"
 import { useAccountsContext } from "../../../../src/context/AccountContext"
-import { useScheduledTransactionContext } from "../../../../src/context/ScheduledTransactionContext"
+
 import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
 export default function ScheduledTransactionDetailScreen() {
   const { id } = useLocalSearchParams()
-  const { refreshData } = useScheduledTransactionContext()
-  const { accounts } = useAccountsContext()
 
+  const { accounts } = useAccountsContext()
   const [transaction, setTransaction] = useState(null)
   const [executionHistory, setExecutionHistory] = useState([])
   const [loading, setLoading] = useState(true)
@@ -35,6 +34,7 @@ export default function ScheduledTransactionDetailScreen() {
     getScheduledTransactionById,
     confirmScheduledTransaction,
     getExecutionHistory,
+    refreshData,
   } = useScheduledTransaction()
   // Editable confirmation data - Fixed to prevent modal closing
   const [confirmData, setConfirmData] = useState({

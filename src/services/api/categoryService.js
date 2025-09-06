@@ -23,6 +23,25 @@ class CategoryService {
       }
     }
   }
+  async getDefaultCategories() {
+    try {
+      const result = await apiClient.get(ENDPOINTS.CATEGORIES.DEFAULT)
+      if (result.success) {
+        return {
+          success: true,
+          data: result.data.categories || result.data,
+        }
+      }
+
+      return result
+    } catch (error) {
+      console.error("Error fetching default categories:", error)
+      return {
+        success: false,
+        error: error.message || "Failed to fetch default categories",
+      }
+    }
+  }
 
   async addCategory(categoryData) {
     try {

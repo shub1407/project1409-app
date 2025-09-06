@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useDatabase } from "../database/providers/DatabaseProvider"
 import { Logger } from "../utility/logger"
 
@@ -7,6 +7,10 @@ export const useTransaction = () => {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [transactions, setTransactions] = useState([])
+  useEffect(() => {
+    getTransactions()
+  }, [dbService])
 
   const getTransactions = useCallback(
     async (options) => {
@@ -14,6 +18,11 @@ export const useTransaction = () => {
       setError(null)
       try {
         const result = await dbService.transactions.getTransactions(options)
+        Logger.debug(
+          "Fetched transactions:(useTxnHook)",
+          result.data.transactions
+        )
+        setTransactions(result.data.transactions || [])
         return result
       } catch (err) {
         setError(err.message)
@@ -119,8 +128,11 @@ export const useTransaction = () => {
   )
 
   return {
+    //state
     loading,
     error,
+    transactions,
+    //actions
     getTransactions,
     createTransaction,
     updateTransaction,

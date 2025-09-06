@@ -13,6 +13,7 @@ export class Logger {
   static error(message, error, ...args) {
     if (__DEV__) {
       console.error(`❌ [ERROR] ${message}`, error, ...args)
+      if (error.stack) console.error(error.stack)
     }
   }
 

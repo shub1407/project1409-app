@@ -31,6 +31,7 @@ export const ENDPOINTS = {
   },
   CATEGORIES: {
     BASE: "/categories",
+    DEFAULT: "/categories/default",
     BY_ID: (id) => `/categories/${id}`,
   },
   TRANSACTIONS: {

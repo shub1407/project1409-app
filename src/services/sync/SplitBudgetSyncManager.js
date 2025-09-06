@@ -386,6 +386,10 @@ export class SplitBudgetSyncManager {
   // ✅ Enhanced processOperation - now handles merged operations correctly
   async processOperation(operation) {
     const { operation_type, table_name, record_data } = operation
+    const normalizedData =
+      table_name === "schedule_transactions"
+        ? this.normalizeScheduledTransaction(record_data)
+        : record_data
 
     switch (operation_type) {
       case "CREATE":
@@ -393,7 +397,7 @@ export class SplitBudgetSyncManager {
 
         const cloudEntity = await splitBudgetApiService.createEntity(
           table_name,
-          record_data
+          normalizedData
         )
 
         Logger.debug("Created remote entity:", cloudEntity.data)
@@ -418,7 +422,7 @@ export class SplitBudgetSyncManager {
 
           const fallbackCloudEntity = await splitBudgetApiService.createEntity(
             table_name,
-            record_data
+            normalizedData
           )
 
           await this.markEntityAsSynced(
@@ -431,7 +435,7 @@ export class SplitBudgetSyncManager {
           await splitBudgetApiService.updateEntity(
             table_name,
             record_data.cloud_id,
-            record_data
+            normalizedData
           )
 
           await this.markEntityAsSynced(table_name, record_data.id)
@@ -730,6 +734,41 @@ export class SplitBudgetSyncManager {
     }
 
     return await this.performSync()
+  }
+
+  //helper functions
+  normalizeScheduledTransaction(data) {
+    let obj = {
+      ...data,
+      isActive: Boolean(data.isActive),
+      isDeleted: Boolean(data.isDeleted),
+      isRecurring: Boolean(data.isRecurring),
+      tags: Array.isArray(data.tags) ? data.tags : [],
+      executionHistory: Array.isArray(data.executionHistory)
+        ? data.executionHistory
+        : [],
+      metadata:
+        typeof data.metadata === "string"
+          ? JSON.parse(data.metadata)
+          : data.metadata,
+      notificationSettings:
+        typeof data.notificationSettings === "string"
+          ? JSON.parse(data.notificationSettings)
+          : data.notificationSettings,
+    }
+
+    if (!obj.toAccountId) {
+      delete obj.toAccountId
+    }
+    if (!obj.maxExecutions) {
+      delete obj.maxExecutions
+    }
+    if (!obj.endDate) {
+      delete obj.endDate
+    }
+
+    Logger.debug("Normalized scheduled transaction:", obj)
+    return obj
   }
 
   cleanup() {

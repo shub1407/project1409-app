@@ -16,14 +16,6 @@ import {
 import { useScheduledTransaction } from "../../../../src/hooks/useScheduledTransaction"
 
 export default function ScheduledTransactionsScreen() {
-  // const {
-  //   //stats = {},
-  //   //loading,
-  //   toggleTransactionStatus,
-  //   //deleteScheduledTransaction,
-  //   refreshData,
-  // } = useScheduledTransactionContext()
-
   const {
     loading,
     stats = {},
@@ -40,8 +32,8 @@ export default function ScheduledTransactionsScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!hooksLoading) {
+        console.log("Hooks loading", hooksLoading)
         console.log("fetched stats from hooks:: ", stats)
-
         console.log("from api:: ", scheduledTransactions)
       }
       refreshData()

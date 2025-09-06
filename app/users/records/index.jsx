@@ -19,9 +19,10 @@ import SummaryCard from "../../../src/components/SummaryCard" // Import the new 
 import TransactionList from "../../../src/components/TransactionList"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useTransaction } from "../../../src/hooks/useTransaction"
+import { Logger } from "../../../src/utility/logger"
 export default function RecordsScreen() {
   const [allTransactions, setAllTransactions] = useState([])
-  const { getTransactions, findAll } = useTransaction()
+  const { getTransactions, findAll, transactions } = useTransaction()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [showFilterModal, setShowFilterModal] = useState(false)
@@ -48,7 +49,7 @@ export default function RecordsScreen() {
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-
+    setAllTransactions(transactions)
     setFilters((prev) => ({
       ...prev,
       startDate: monthStart.toISOString().split("T")[0],
@@ -91,9 +92,8 @@ export default function RecordsScreen() {
         lastFetchParams.current = currentParams
 
         // const result = await transactionService.getTransactions(options)
-
+        Logger.debug("Fetching transactions with options:", options)
         const result = await getTransactions(options) // Use local db hook
-        const all = await findAll()
         //console.log("Fetched transaction:: ", all)
         console.log("With filters all:", result.data.transactions)
 
