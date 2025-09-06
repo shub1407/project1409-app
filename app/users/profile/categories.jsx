@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native"
 import { useCategoryContext } from "../../../src/context/CategoryContext"
+import { Logger } from "../../../src/utility/logger"
 
 const { width: screenWidth } = Dimensions.get("window")
 
@@ -29,14 +30,15 @@ export default function CategoriesScreen() {
     fetchCategories,
     loading: categoryLoading,
   } = useCategoryContext()
+
   const [activeTab, setActiveTab] = useState("expense")
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState(null)
   const [newCategoryName, setNewCategoryName] = useState("")
   const [selectedIcon, setSelectedIcon] = useState("apps-outline")
   const [selectedColor, setSelectedColor] = useState("#1CC29F")
+
   useEffect(() => {
-    // Reset state when modal is closed
     fetchCategories()
   }, [])
 
@@ -85,6 +87,16 @@ export default function CategoriesScreen() {
     return Math.floor((screenWidth - screenPadding - cardGap) / cardsPerRow)
   }
 
+  useEffect(() => {
+    // ✅ Fixed Logger statement - no template literals
+    Logger.debug(
+      "[categories.jsx] activeTab changed to " +
+        activeTab +
+        ". Printing categories:"
+    )
+    console.log(currentCategories)
+  }, [activeTab, currentCategories])
+
   // Check if category can be modified (not default and no transactions)
   const canModifyCategory = (category) => {
     return (
@@ -106,6 +118,7 @@ export default function CategoriesScreen() {
       Alert.alert("Error", "Please enter a category name")
       return
     }
+
     try {
       const categoryData = {
         label: newCategoryName.trim(),
@@ -113,6 +126,7 @@ export default function CategoriesScreen() {
         color: selectedColor,
         type: activeTab,
       }
+
       await addCategory(categoryData)
       resetModal()
       Alert.alert("Success", "Category added successfully")
@@ -130,17 +144,22 @@ export default function CategoriesScreen() {
           "Default categories cannot be modified. They are required for the app to function properly."
         )
       } else {
+        const transactionCount = category.transactionCount || 0
+        const transactionText =
+          transactionCount === 1 ? "transaction" : "transactions"
         Alert.alert(
           "Cannot Edit",
-          `This category has ${category.transactionCount || 0} transaction${
-            (category.transactionCount || 0) !== 1 ? "s" : ""
-          } and cannot be modified. Delete the transactions first to edit this category.`
+          "This category has " +
+            transactionCount +
+            " " +
+            transactionText +
+            " and cannot be modified. Delete the transactions first to edit this category."
         )
       }
       return
     }
-    console.log("Editing category:", category)
 
+    console.log("Editing category:", category)
     setEditingCategory(category)
     setNewCategoryName(category.label)
     setSelectedIcon(category.icon)
@@ -182,17 +201,21 @@ export default function CategoriesScreen() {
           "Default categories cannot be deleted. They are required for the app to function properly."
         )
       } else {
+        const transactionCount = category.transactionCount || 0
+        const transactionText =
+          transactionCount === 1 ? "transaction" : "transactions"
         Alert.alert(
           "Cannot Delete",
-          `This category has ${category.transactionCount || 0} transaction${
-            (category.transactionCount || 0) !== 1 ? "s" : ""
-          } and cannot be deleted. Please move or delete the transactions first.`,
+          "This category has " +
+            transactionCount +
+            " " +
+            transactionText +
+            " and cannot be deleted. Please move or delete the transactions first.",
           [
             { text: "OK", style: "default" },
             {
               text: "View Transactions",
               onPress: () => {
-                // Navigate to transactions filtered by this category
                 router.push({
                   pathname: "/(tabs)/records",
                   params: { categoryId: category.id },
@@ -207,7 +230,7 @@ export default function CategoriesScreen() {
 
     Alert.alert(
       "Delete Category",
-      `Are you sure you want to delete "${category.label}"?`,
+      'Are you sure you want to delete "' + category.label + '"?',
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -234,6 +257,7 @@ export default function CategoriesScreen() {
       </View>
     )
   }
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
@@ -287,78 +311,93 @@ export default function CategoriesScreen() {
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           <View style={styles.categoriesContainer}>
             {!categoryLoading &&
-              currentCategories.map((category, index) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryItem,
-                    { width: getCardWidth() },
-                    !canModifyCategory(category) && styles.lockedCategoryItem,
-                  ]}
-                  onPress={() => handleEditCategory(category)}
-                  activeOpacity={0.7}
-                >
-                  {/* Show delete button only for modifiable categories */}
-                  {canModifyCategory(category) && (
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteCategory(category)}
-                    >
-                      <Ionicons name="close-circle" size={18} color="#EF4444" />
-                    </TouchableOpacity>
-                  )}
+              Array.isArray(currentCategories) &&
+              currentCategories.map((category) => {
+                // ✅ Add safety checks for category data
+                if (!category || !category.id) return null
 
-                  {/* Show lock icon for protected categories */}
-                  {!canModifyCategory(category) && (
-                    <View style={styles.lockIndicator}>
-                      <Ionicons
-                        name={
-                          category.isDefault
-                            ? "shield-checkmark"
-                            : "lock-closed"
-                        }
-                        size={12}
-                        color="#F59E0B"
-                      />
-                    </View>
-                  )}
+                const categoryColor = category.color || "#1CC29F"
+                const categoryIcon = category.icon || "apps-outline"
+                const categoryLabel = category.label || "Unnamed Category"
 
-                  <View
+                return (
+                  <TouchableOpacity
+                    key={category.id}
                     style={[
-                      styles.categoryIcon,
-                      { backgroundColor: `${category.color}20` },
+                      styles.categoryItem,
+                      { width: getCardWidth() },
+                      !canModifyCategory(category) && styles.lockedCategoryItem,
                     ]}
+                    onPress={() => handleEditCategory(category)}
+                    activeOpacity={0.7}
                   >
-                    <Ionicons
-                      name={category.icon}
-                      size={24}
-                      color={category.color}
-                    />
-                  </View>
-                  <Text style={styles.categoryName} numberOfLines={2}>
-                    {category.label}
-                  </Text>
-
-                  {/* Show transaction count if exists */}
-                  {typeof category.transactionCount === "number" &&
-                    category.transactionCount > 0 && (
-                      <Text style={styles.transactionCount}>
-                        {category.transactionCount} transaction
-                        {category.transactionCount !== 1 ? "s" : ""}
-                      </Text>
+                    {/* Show delete button only for modifiable categories */}
+                    {canModifyCategory(category) && (
+                      <TouchableOpacity
+                        style={styles.deleteButton}
+                        onPress={() => handleDeleteCategory(category)}
+                      >
+                        <Ionicons
+                          name="close-circle"
+                          size={18}
+                          color="#EF4444"
+                        />
+                      </TouchableOpacity>
                     )}
 
-                  {/* Show default badge */}
-                  {category.isDefault && (
-                    <View style={styles.defaultBadge}>
-                      <Text style={styles.defaultBadgeText}>Default</Text>
+                    {/* Show lock icon for protected categories */}
+                    {!canModifyCategory(category) && (
+                      <View style={styles.lockIndicator}>
+                        <Ionicons
+                          name={
+                            category.isDefault
+                              ? "shield-checkmark"
+                              : "lock-closed"
+                          }
+                          size={12}
+                          color="#F59E0B"
+                        />
+                      </View>
+                    )}
+
+                    <View
+                      style={[
+                        styles.categoryIcon,
+                        { backgroundColor: categoryColor + "20" },
+                      ]}
+                    >
+                      <Ionicons
+                        name={categoryIcon}
+                        size={24}
+                        color={categoryColor}
+                      />
                     </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+
+                    <Text style={styles.categoryName} numberOfLines={2}>
+                      {categoryLabel}
+                    </Text>
+
+                    {/* Show transaction count if exists */}
+                    {typeof category.transactionCount === "number" &&
+                      category.transactionCount > 0 && (
+                        <Text style={styles.transactionCount}>
+                          {category.transactionCount} transaction
+                          {category.transactionCount !== 1 ? "s" : ""}
+                        </Text>
+                      )}
+
+                    {/* Show default badge */}
+                    {category.isDefault && (
+                      <View style={styles.defaultBadge}>
+                        <Text style={styles.defaultBadgeText}>Default</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
           </View>
 
-          {currentCategories.length === 0 && (
+          {(!currentCategories || currentCategories.length === 0) && (
             <View style={styles.emptyState}>
               <View style={styles.emptyStateIcon}>
                 <Ionicons name="apps-outline" size={48} color="#D1D5DB" />
@@ -386,7 +425,6 @@ export default function CategoriesScreen() {
         >
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              {/* Scrollable Content */}
               <ScrollView
                 style={styles.modalScrollView}
                 showsVerticalScrollIndicator={false}
@@ -460,14 +498,13 @@ export default function CategoriesScreen() {
                   </View>
                 </View>
 
-                {/* Preview Section */}
                 <View style={styles.previewSection}>
                   <Text style={styles.inputLabel}>Preview</Text>
                   <View style={styles.previewCard}>
                     <View
                       style={[
                         styles.previewIcon,
-                        { backgroundColor: `${selectedColor}20` },
+                        { backgroundColor: selectedColor + "20" },
                       ]}
                     >
                       <Ionicons
@@ -483,7 +520,6 @@ export default function CategoriesScreen() {
                 </View>
               </ScrollView>
 
-              {/* Fixed Action Buttons */}
               <View style={styles.modalActions}>
                 <TouchableOpacity
                   style={styles.cancelButton}
@@ -515,35 +551,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F9FAFB",
   },
-  header: {
-    backgroundColor: "#1CC29F",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  loadingContainer: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F9FAFB",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#1CC29F",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  backButton: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: "700",
+    fontWeight: "600",
     color: "#FFFFFF",
   },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 8,
   },
   tabContainer: {
     flexDirection: "row",
@@ -552,6 +588,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 12,
     padding: 4,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   tab: {
     flex: 1,
@@ -564,7 +605,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#6B7280",
   },
   activeTabText: {
@@ -572,91 +613,76 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 20,
   },
   categoriesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: 12,
+    paddingTop: 20,
+    paddingBottom: 100,
   },
   categoryItem: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    padding: 12,
+    padding: 16,
+    marginBottom: 16,
     alignItems: "center",
-    position: "relative",
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    aspectRatio: 1, // Makes cards square
-    justifyContent: "center",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    position: "relative",
   },
   lockedCategoryItem: {
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    opacity: 0.7,
+  },
+  deleteButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 1,
+  },
+  lockIndicator: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    padding: 4,
   },
   categoryIcon: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
   },
   categoryName: {
     fontSize: 12,
-    fontWeight: "600",
-    color: "#111827",
+    fontWeight: "500",
+    color: "#374151",
     textAlign: "center",
-    marginBottom: 4,
-  },
-  deleteButton: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-    zIndex: 1,
-  },
-  lockIndicator: {
-    position: "absolute",
-    top: -6,
-    right: -6,
-    backgroundColor: "#FEF3C7",
-    borderRadius: 12,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: "#F59E0B",
-    zIndex: 1,
+    lineHeight: 16,
   },
   transactionCount: {
     fontSize: 10,
     color: "#6B7280",
-    textAlign: "center",
-    marginTop: 2,
+    marginTop: 4,
   },
   defaultBadge: {
-    position: "absolute",
-    bottom: -6,
-    backgroundColor: "#1CC29F",
+    backgroundColor: "#EEF2FF",
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 4,
+    marginTop: 4,
   },
   defaultBadgeText: {
     fontSize: 8,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    color: "#4338CA",
+    fontWeight: "500",
   },
   emptyState: {
     alignItems: "center",
@@ -664,18 +690,12 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyStateIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#F3F4F6",
-    justifyContent: "center",
-    alignItems: "center",
     marginBottom: 16,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#111827",
+    color: "#374151",
     marginBottom: 8,
   },
   emptySubtext: {
@@ -687,11 +707,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#1CC29F",
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 25,
+    borderRadius: 8,
   },
   emptyActionText: {
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontWeight: "500",
   },
   modalOverlay: {
     flex: 1,
@@ -700,67 +720,61 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: "90%",
-    paddingTop: 20,
+    paddingBottom: 20,
   },
   modalScrollView: {
-    maxHeight: "85%",
+    paddingHorizontal: 24,
+    paddingTop: 24,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 20,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 24,
     textAlign: "center",
-    paddingHorizontal: 24,
   },
   inputGroup: {
-    paddingHorizontal: 24,
     marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#374151",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#F9FAFB",
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderRadius: 8,
+    padding: 12,
     fontSize: 16,
-    color: "#111827",
+    backgroundColor: "#FFFFFF",
   },
   iconSelector: {
     maxHeight: 60,
   },
   iconSelectorContent: {
-    paddingRight: 24,
+    paddingRight: 20,
   },
   iconOption: {
     width: 40,
     height: 40,
-    borderRadius: 10,
-    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 8,
-    borderWidth: 2,
-    borderColor: "#E5E7EB",
+    marginRight: 12,
+    backgroundColor: "#F3F4F6",
   },
   selectedIconOption: {
     backgroundColor: "#1CC29F",
-    borderColor: "#1CC29F",
   },
   colorSelector: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 12,
   },
   colorOption: {
     width: 32,
@@ -768,70 +782,396 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
   },
   selectedColorOption: {
-    borderColor: "#FFFFFF",
     borderWidth: 3,
-    transform: [{ scale: 1.1 }],
+    borderColor: "#FFFFFF",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   previewSection: {
-    paddingHorizontal: 24,
     marginBottom: 20,
   },
   previewCard: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
     flexDirection: "row",
-    justifyContent: "center",
-    gap: 12,
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   previewIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
+    marginRight: 12,
   },
   previewText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
+    fontWeight: "500",
+    color: "#374151",
   },
   modalActions: {
     flexDirection: "row",
-    gap: 12,
     paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-    backgroundColor: "#FFFFFF",
+    paddingTop: 20,
+    gap: 12,
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: "#F3F4F6",
     paddingVertical: 16,
-    borderRadius: 12,
     alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "500",
+    color: "#6B7280",
   },
   saveButton: {
     flex: 1,
-    backgroundColor: "#1CC29F",
     paddingVertical: 16,
-    borderRadius: 12,
     alignItems: "center",
+    borderRadius: 12,
+    backgroundColor: "#1CC29F",
   },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "500",
     color: "#FFFFFF",
   },
 })
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: "#F9FAFB",
+//     paddingBottom: 0,
+//   },
+//   header: {
+//     backgroundColor: "#1CC29F",
+//     paddingHorizontal: 20,
+//     paddingTop: 20,
+//     paddingBottom: 24,
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//   },
+//   backButton: {
+//     width: 40,
+//     height: 40,
+//     borderRadius: 20,
+//     backgroundColor: "rgba(255, 255, 255, 0.2)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   headerTitle: {
+//     fontSize: 20,
+//     fontWeight: "700",
+//     color: "#FFFFFF",
+//   },
+//   addButton: {
+//     width: 40,
+//     height: 40,
+//     borderRadius: 20,
+//     backgroundColor: "rgba(255, 255, 255, 0.2)",
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   tabContainer: {
+//     flexDirection: "row",
+//     backgroundColor: "#FFFFFF",
+//     marginHorizontal: 20,
+//     marginTop: 20,
+//     borderRadius: 12,
+//     padding: 4,
+//   },
+//   tab: {
+//     flex: 1,
+//     paddingVertical: 12,
+//     alignItems: "center",
+//     borderRadius: 8,
+//   },
+//   activeTab: {
+//     backgroundColor: "#1CC29F",
+//   },
+//   tabText: {
+//     fontSize: 14,
+//     fontWeight: "600",
+//     color: "#6B7280",
+//   },
+//   activeTabText: {
+//     color: "#FFFFFF",
+//   },
+//   content: {
+//     flex: 1,
+//     padding: 20,
+//   },
+//   categoriesContainer: {
+//     flexDirection: "row",
+//     flexWrap: "wrap",
+//     justifyContent: "space-between",
+//     gap: 12,
+//   },
+//   categoryItem: {
+//     backgroundColor: "#FFFFFF",
+//     borderRadius: 16,
+//     padding: 12,
+//     alignItems: "center",
+//     position: "relative",
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.05,
+//     shadowRadius: 8,
+//     elevation: 3,
+//     aspectRatio: 1, // Makes cards square
+//     justifyContent: "center",
+//   },
+//   lockedCategoryItem: {
+//     backgroundColor: "#F9FAFB",
+//     borderWidth: 1,
+//     borderColor: "#E5E7EB",
+//   },
+//   categoryIcon: {
+//     width: 48,
+//     height: 48,
+//     borderRadius: 14,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginBottom: 8,
+//   },
+//   categoryName: {
+//     fontSize: 12,
+//     fontWeight: "600",
+//     color: "#111827",
+//     textAlign: "center",
+//     marginBottom: 4,
+//   },
+//   deleteButton: {
+//     position: "absolute",
+//     top: -6,
+//     right: -6,
+//     backgroundColor: "#FFFFFF",
+//     borderRadius: 12,
+//     padding: 2,
+//     shadowColor: "#000",
+//     shadowOffset: { width: 0, height: 1 },
+//     shadowOpacity: 0.1,
+//     shadowRadius: 2,
+//     elevation: 2,
+//     zIndex: 1,
+//   },
+//   lockIndicator: {
+//     position: "absolute",
+//     top: -6,
+//     right: -6,
+//     backgroundColor: "#FEF3C7",
+//     borderRadius: 12,
+//     padding: 4,
+//     borderWidth: 1,
+//     borderColor: "#F59E0B",
+//     zIndex: 1,
+//   },
+//   transactionCount: {
+//     fontSize: 10,
+//     color: "#6B7280",
+//     textAlign: "center",
+//     marginTop: 2,
+//   },
+//   defaultBadge: {
+//     position: "absolute",
+//     bottom: -6,
+//     backgroundColor: "#1CC29F",
+//     paddingHorizontal: 6,
+//     paddingVertical: 2,
+//     borderRadius: 8,
+//   },
+//   defaultBadgeText: {
+//     fontSize: 8,
+//     fontWeight: "700",
+//     color: "#FFFFFF",
+//   },
+//   emptyState: {
+//     alignItems: "center",
+//     justifyContent: "center",
+//     paddingVertical: 60,
+//   },
+//   emptyStateIcon: {
+//     width: 80,
+//     height: 80,
+//     borderRadius: 40,
+//     backgroundColor: "#F3F4F6",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginBottom: 16,
+//   },
+//   emptyText: {
+//     fontSize: 18,
+//     fontWeight: "600",
+//     color: "#111827",
+//     marginBottom: 8,
+//   },
+//   emptySubtext: {
+//     fontSize: 14,
+//     color: "#6B7280",
+//     marginBottom: 24,
+//   },
+//   emptyActionButton: {
+//     backgroundColor: "#1CC29F",
+//     paddingHorizontal: 24,
+//     paddingVertical: 12,
+//     borderRadius: 25,
+//   },
+//   emptyActionText: {
+//     color: "#FFFFFF",
+//     fontWeight: "600",
+//   },
+//   modalOverlay: {
+//     flex: 1,
+//     backgroundColor: "rgba(0, 0, 0, 0.5)",
+//     justifyContent: "flex-end",
+//   },
+//   modalContent: {
+//     backgroundColor: "#FFFFFF",
+//     borderTopLeftRadius: 20,
+//     borderTopRightRadius: 20,
+//     maxHeight: "90%",
+//     paddingTop: 20,
+//   },
+//   modalScrollView: {
+//     maxHeight: "85%",
+//   },
+//   modalTitle: {
+//     fontSize: 20,
+//     fontWeight: "700",
+//     color: "#111827",
+//     marginBottom: 20,
+//     textAlign: "center",
+//     paddingHorizontal: 24,
+//   },
+//   inputGroup: {
+//     paddingHorizontal: 24,
+//     marginBottom: 20,
+//   },
+//   inputLabel: {
+//     fontSize: 14,
+//     fontWeight: "600",
+//     color: "#374151",
+//     marginBottom: 8,
+//   },
+//   input: {
+//     backgroundColor: "#F9FAFB",
+//     borderWidth: 2,
+//     borderColor: "#E5E7EB",
+//     borderRadius: 12,
+//     paddingHorizontal: 16,
+//     paddingVertical: 12,
+//     fontSize: 16,
+//     color: "#111827",
+//   },
+//   iconSelector: {
+//     maxHeight: 60,
+//   },
+//   iconSelectorContent: {
+//     paddingRight: 24,
+//   },
+//   iconOption: {
+//     width: 40,
+//     height: 40,
+//     borderRadius: 10,
+//     backgroundColor: "#F9FAFB",
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginRight: 8,
+//     borderWidth: 2,
+//     borderColor: "#E5E7EB",
+//   },
+//   selectedIconOption: {
+//     backgroundColor: "#1CC29F",
+//     borderColor: "#1CC29F",
+//   },
+//   colorSelector: {
+//     flexDirection: "row",
+//     flexWrap: "wrap",
+//     gap: 8,
+//   },
+//   colorOption: {
+//     width: 32,
+//     height: 32,
+//     borderRadius: 16,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     borderWidth: 2,
+//     borderColor: "transparent",
+//   },
+//   selectedColorOption: {
+//     borderColor: "#FFFFFF",
+//     borderWidth: 3,
+//     transform: [{ scale: 1.1 }],
+//   },
+//   previewSection: {
+//     paddingHorizontal: 24,
+//     marginBottom: 20,
+//   },
+//   previewCard: {
+//     backgroundColor: "#F9FAFB",
+//     borderRadius: 12,
+//     padding: 16,
+//     alignItems: "center",
+//     flexDirection: "row",
+//     justifyContent: "center",
+//     gap: 12,
+//   },
+//   previewIcon: {
+//     width: 40,
+//     height: 40,
+//     borderRadius: 12,
+//     justifyContent: "center",
+//     alignItems: "center",
+//   },
+//   previewText: {
+//     fontSize: 16,
+//     fontWeight: "600",
+//     color: "#111827",
+//   },
+//   modalActions: {
+//     flexDirection: "row",
+//     gap: 12,
+//     paddingHorizontal: 24,
+//     paddingVertical: 20,
+//     borderTopWidth: 1,
+//     borderTopColor: "#F3F4F6",
+//     backgroundColor: "#FFFFFF",
+//   },
+//   cancelButton: {
+//     flex: 1,
+//     backgroundColor: "#F3F4F6",
+//     paddingVertical: 16,
+//     borderRadius: 12,
+//     alignItems: "center",
+//   },
+//   cancelButtonText: {
+//     fontSize: 16,
+//     fontWeight: "600",
+//     color: "#374151",
+//   },
+//   saveButton: {
+//     flex: 1,
+//     backgroundColor: "#1CC29F",
+//     paddingVertical: 16,
+//     borderRadius: 12,
+//     alignItems: "center",
+//   },
+//   saveButtonText: {
+//     fontSize: 16,
+//     fontWeight: "600",
+//     color: "#FFFFFF",
+//   },
+// })

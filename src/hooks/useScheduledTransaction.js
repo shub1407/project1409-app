@@ -59,6 +59,10 @@ export const useScheduledTransaction = () => {
       try {
         const result =
           await scheduledTransactionService.getScheduledTransactions(options)
+        Logger.debug(
+          "[useScheduledtransaction]Fetched scheduled transactions:",
+          result.data.scheduledTransactions
+        )
         setScheduledTransactions(result.data.scheduledTransactions)
         return result
       } catch (err) {

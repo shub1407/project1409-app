@@ -81,6 +81,21 @@ export class BaseRepository {
       return Result.fail(err.message, "Failed to fetch record")
     }
   }
+  async findByCloudId(cloudId) {
+    try {
+      const row = await this.db.getFirstAsync(
+        `SELECT * FROM ${this.tableName} WHERE cloud_id = ? AND is_deleted = 0`,
+        [cloudId]
+      )
+      return Result.ok(
+        toCamelCase(row || {}),
+        row ? "Record fetched successfully" : "Record not found"
+      )
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to fetch record")
+    }
+  }
 
   async findAll(options = {}) {
     try {

@@ -18,10 +18,10 @@ export const useTransaction = () => {
       setError(null)
       try {
         const result = await dbService.transactions.getTransactions(options)
-        Logger.debug(
-          "Fetched transactions:(useTxnHook)",
-          result.data.transactions
-        )
+        // Logger.debug(
+        //   "Fetched transactions:(useTxnHook)",
+        //   result.data.transactions
+        // )
         setTransactions(result.data.transactions || [])
         return result
       } catch (err) {

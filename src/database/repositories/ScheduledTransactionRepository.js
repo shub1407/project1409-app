@@ -160,79 +160,6 @@ export class ScheduledTransactionRepository extends BaseRepository {
     }
   }
 
-  // Override findById to handle JSON fields
-  async findById(id) {
-    try {
-      const query = `
-        SELECT st.*,
-               c.label as category_label,
-               c.icon as category_icon,
-               c.color as category_color,
-               a.name as account_name,
-               a.balance as account_balance,
-               a.icon as account_icon,
-               a.color as account_color,
-               ta.name as to_account_name,
-               ta.balance as to_account_balance,
-               ta.icon as to_account_icon,
-               ta.color as to_account_color,
-               CASE
-                 WHEN st.next_run_date < ? AND st.status = 'active' AND st.is_active = 1 THEN 1
-                 ELSE 0
-               END as is_overdue,
-               CASE
-                 WHEN st.next_run_date BETWEEN ? AND ? THEN 1
-                 ELSE 0
-               END as is_due_soon
-        FROM ${this.tableName} st
-        LEFT JOIN categories c ON st.category_id = c.id
-        LEFT JOIN accounts a ON st.account_id = a.id
-        LEFT JOIN accounts ta ON st.to_account_id = ta.id
-        WHERE st.id = ? AND st.is_deleted = 0
-      `
-
-      const now = Date.now()
-      const soonThreshold = now + 7 * 24 * 60 * 60 * 1000 // 7 days from now
-
-      const row = await this.db.getFirstAsync(query, [
-        now,
-        now,
-        soonThreshold,
-        id,
-      ])
-
-      if (!row) {
-        return Result.ok({}, "Scheduled transaction not found")
-      }
-
-      // Parse JSON fields and convert to camelCase
-      const result = this.parseJsonFields(toCamelCase(row))
-
-      // Add additional computed fields
-      result.nextPaymentDate = result.nextRunDate
-      result.isOverdue = Boolean(row.is_overdue)
-      result.isDueSoon = Boolean(row.is_due_soon)
-
-      // Calculate days until next payment
-      if (result.nextRunDate) {
-        const daysUntil = Math.ceil(
-          (result.nextRunDate - now) / (1000 * 60 * 60 * 24)
-        )
-        result.daysUntilNextPayment = daysUntil
-        result.paymentStatus =
-          daysUntil < 0 ? "overdue" : daysUntil <= 7 ? "due_soon" : "scheduled"
-      }
-
-      return Result.ok(
-        result,
-        "Scheduled transaction with details fetched successfully"
-      )
-    } catch (err) {
-      Logger.error(err)
-      return Result.fail(err.message, "Failed to fetch scheduled transaction")
-    }
-  }
-
   // Helper method to parse JSON fields
   parseJsonFields(data) {
     if (!data.id) return data
@@ -317,6 +244,12 @@ export class ScheduledTransactionRepository extends BaseRepository {
       params.push(limit, offset)
 
       const rows = await this.db.getAllAsync(query, params)
+      Logger.debug(
+        `[ScheduledTransactionRepository] findWithOptions SQL:`,
+        { query, params },
+        `\nRetrieved rows:`,
+        rows
+      )
 
       // Parse JSON fields for all rows and convert to camelCase
       const scheduledTransactions = rows.map((row) =>
@@ -357,7 +290,7 @@ export class ScheduledTransactionRepository extends BaseRepository {
 
       return Result.ok(
         {
-          scheduledTransactions,
+          scheduledTransactions: toCamelCase(scheduledTransactions),
           pagination: {
             page,
             limit,
@@ -372,8 +305,80 @@ export class ScheduledTransactionRepository extends BaseRepository {
       return Result.fail(err.message, "Failed to fetch scheduled transactions")
     }
   }
+  // Override findById to handle JSON fields
+  async findById(id) {
+    try {
+      const query = `
+        SELECT st.*,
+               c.label as category_label,
+               c.icon as category_icon,
+               c.color as category_color,
+               a.name as account_name,
+               a.balance as account_balance,
+               a.icon as account_icon,
+               a.color as account_color,
+               ta.name as to_account_name,
+               ta.balance as to_account_balance,
+               ta.icon as to_account_icon,
+               ta.color as to_account_color,
+               CASE
+                 WHEN st.next_run_date < ? AND st.status = 'active' AND st.is_active = 1 THEN 1
+                 ELSE 0
+               END as is_overdue,
+               CASE
+                 WHEN st.next_run_date BETWEEN ? AND ? THEN 1
+                 ELSE 0
+               END as is_due_soon
+        FROM ${this.tableName} st
+        LEFT JOIN categories c ON st.category_id = c.id
+        LEFT JOIN accounts a ON st.account_id = a.id
+        LEFT JOIN accounts ta ON st.to_account_id = ta.id
+        WHERE st.id = ? AND st.is_deleted = 0
+      `
 
-  // Method to add execution history entry
+      const now = Date.now()
+      const soonThreshold = now + 7 * 24 * 60 * 60 * 1000 // 7 days from now
+
+      const row = await this.db.getFirstAsync(query, [
+        now,
+        now,
+        soonThreshold,
+        id,
+      ])
+
+      if (!row) {
+        return Result.ok({}, "Scheduled transaction not found")
+      }
+
+      // Parse JSON fields and convert to camelCase
+      const result = this.parseJsonFields(toCamelCase(row))
+
+      // Add additional computed fields
+      result.nextPaymentDate = result.nextRunDate
+      result.isOverdue = Boolean(row.is_overdue)
+      result.isDueSoon = Boolean(row.is_due_soon)
+
+      // Calculate days until next payment
+      if (result.nextRunDate) {
+        const daysUntil = Math.ceil(
+          (result.nextRunDate - now) / (1000 * 60 * 60 * 24)
+        )
+        result.daysUntilNextPayment = daysUntil
+        result.paymentStatus =
+          daysUntil < 0 ? "overdue" : daysUntil <= 7 ? "due_soon" : "scheduled"
+      }
+
+      return Result.ok(
+        result,
+        "Scheduled transaction with details fetched successfully"
+      )
+    } catch (err) {
+      Logger.error(err)
+      return Result.fail(err.message, "Failed to fetch scheduled transaction")
+    }
+  }
+
+  // Method to add execution history entry to scheduled execution
   async addExecutionHistory(id, executionData) {
     try {
       const result = await this.findById(id)
@@ -381,6 +386,11 @@ export class ScheduledTransactionRepository extends BaseRepository {
 
       const scheduledTxn = result.data
       const history = scheduledTxn.executionHistory || []
+
+      Logger.debug(
+        `[ScheduledTransactionRepository] Current execution history for ${id}:`,
+        history
+      )
 
       history.push({
         executedAt: executionData.executedAt || Date.now(),
@@ -395,6 +405,11 @@ export class ScheduledTransactionRepository extends BaseRepository {
         executionCount: history.length,
         lastExecuted: executionData.executedAt || Date.now(),
       }
+
+      Logger.debug(
+        `[ScheduledTransactionRepository] Updated execution history for ${id}:`,
+        updateData
+      )
 
       return await this.update(id, updateData)
     } catch (err) {

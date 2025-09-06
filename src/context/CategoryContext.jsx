@@ -2,6 +2,7 @@
 import * as SecureStore from "expo-secure-store"
 import { createContext, useContext, useEffect, useReducer } from "react"
 import { useDatabase } from "../database/providers/DatabaseProvider"
+
 // Initial state
 const initialState = {
   categories: [],
@@ -22,31 +23,77 @@ const ACTIONS = {
   CLEAR_ERROR: "CLEAR_ERROR",
 }
 
+// Helper function to validate and sanitize category data
+const sanitizeCategory = (category) => {
+  if (!category || typeof category !== "object") return null
+
+  return {
+    id: category.id || "",
+    label: category.label || "",
+    icon: category.icon || "apps-outline",
+    color: category.color || "#1CC29F",
+    type: category.type || "expense",
+    isDefault: Boolean(category.isDefault),
+    isActive:
+      category.isActive !== undefined ? Boolean(category.isActive) : true,
+    isDeleted: Boolean(category.isDeleted),
+    transactionCount:
+      typeof category.transactionCount === "number"
+        ? category.transactionCount
+        : 0,
+    createdAt: category.createdAt || Date.now(),
+    updatedAt: category.updatedAt || Date.now(),
+    version: category.version || 1,
+    syncStatus: category.syncStatus || "pending",
+    cloudId: category.cloudId || null,
+    lastSynced: category.lastSynced || 0,
+  }
+}
+
+// Helper function to sanitize categories array
+const sanitizeCategories = (categories) => {
+  if (!Array.isArray(categories)) return []
+
+  return categories
+    .map(sanitizeCategory)
+    .filter((category) => category !== null) // Remove any null/invalid categories
+}
+
 // Reducer
 const categoryReducer = (state, action) => {
   switch (action.type) {
     case ACTIONS.SET_LOADING:
-      return { ...state, loading: action.payload }
+      return { ...state, loading: Boolean(action.payload) }
 
     case ACTIONS.SET_CATEGORIES:
-      const categories = action.payload
+      const sanitizedCategories = sanitizeCategories(action.payload)
       return {
         ...state,
-        categories,
-        expenseCategories: categories.filter((cat) => cat.type === "expense"),
-        incomeCategories: categories.filter((cat) => cat.type === "income"),
+        categories: sanitizedCategories,
+        expenseCategories: sanitizedCategories.filter(
+          (cat) => cat.type === "expense"
+        ),
+        incomeCategories: sanitizedCategories.filter(
+          (cat) => cat.type === "income"
+        ),
         loading: false,
         error: null,
       }
 
     case ACTIONS.SET_ERROR:
-      return { ...state, error: action.payload, loading: false }
+      return {
+        ...state,
+        error: action.payload || "An unknown error occurred",
+        loading: false,
+      }
 
     case ACTIONS.CLEAR_ERROR:
       return { ...state, error: null }
 
     case ACTIONS.ADD_CATEGORY:
-      const newCategory = action.payload
+      const newCategory = sanitizeCategory(action.payload)
+      if (!newCategory) return state
+
       const updatedCategoriesAdd = [...state.categories, newCategory]
       return {
         ...state,
@@ -60,9 +107,17 @@ const categoryReducer = (state, action) => {
       }
 
     case ACTIONS.UPDATE_CATEGORY:
-      const updatedCategoriesUpdate = state.categories.map((cat) =>
-        cat.id === action.payload.id ? { ...cat, ...action.payload } : cat
-      )
+      const updateData = action.payload
+      if (!updateData || !updateData.id) return state
+
+      const updatedCategoriesUpdate = state.categories.map((cat) => {
+        if (cat.id === updateData.id) {
+          const updatedCategory = sanitizeCategory({ ...cat, ...updateData })
+          return updatedCategory || cat // fallback to original if sanitization fails
+        }
+        return cat
+      })
+
       return {
         ...state,
         categories: updatedCategoriesUpdate,
@@ -75,8 +130,11 @@ const categoryReducer = (state, action) => {
       }
 
     case ACTIONS.DELETE_CATEGORY:
+      const categoryIdToDelete = action.payload
+      if (!categoryIdToDelete) return state
+
       const filteredCategories = state.categories.filter(
-        (cat) => cat.id !== action.payload
+        (cat) => cat.id !== categoryIdToDelete
       )
       return {
         ...state,
@@ -108,27 +166,42 @@ export const CategoryProvider = ({ children }) => {
 
     try {
       const result = await dbService.categories.getCategories()
-      // console.log("Db categories::", result)
 
-      if (result.success) {
+      if (result && result.success && result.data) {
         dispatch({ type: ACTIONS.SET_CATEGORIES, payload: result.data })
         // Cache categories locally
-        await SecureStore.setItemAsync(
-          "categories_cache",
-          JSON.stringify(result.data)
-        )
+        try {
+          await SecureStore.setItemAsync(
+            "categories_cache",
+            JSON.stringify(result.data)
+          )
+        } catch (cacheError) {
+          console.warn("Failed to cache categories:", cacheError)
+        }
       } else {
         // Try to load from cache if API fails
-        const cachedCategories = await SecureStore.getItemAsync(
-          "categories_cache"
-        )
-        if (cachedCategories) {
+        try {
+          const cachedCategories = await SecureStore.getItemAsync(
+            "categories_cache"
+          )
+          if (cachedCategories) {
+            const parsedCategories = JSON.parse(cachedCategories)
+            dispatch({
+              type: ACTIONS.SET_CATEGORIES,
+              payload: parsedCategories,
+            })
+          } else {
+            dispatch({
+              type: ACTIONS.SET_ERROR,
+              payload: result?.error || "Failed to load categories",
+            })
+          }
+        } catch (cacheError) {
+          console.error("Cache error:", cacheError)
           dispatch({
-            type: ACTIONS.SET_CATEGORIES,
-            payload: JSON.parse(cachedCategories),
+            type: ACTIONS.SET_ERROR,
+            payload: "Failed to load categories from cache",
           })
-        } else {
-          dispatch({ type: ACTIONS.SET_ERROR, payload: result.error })
         }
       }
     } catch (error) {
@@ -143,14 +216,20 @@ export const CategoryProvider = ({ children }) => {
   // Create new category
   const addCategory = async (categoryData) => {
     try {
-      //const result = await categoryService.addCategory(categoryData)
+      if (!categoryData || typeof categoryData !== "object") {
+        return { success: false, error: "Invalid category data" }
+      }
+
       const result = await dbService.categories.create(categoryData)
 
-      if (result.success) {
+      if (result && result.success && result.data) {
         dispatch({ type: ACTIONS.ADD_CATEGORY, payload: result.data })
         return { success: true, category: result.data }
       } else {
-        return { success: false, error: result.error }
+        return {
+          success: false,
+          error: result?.error || "Failed to create category",
+        }
       }
     } catch (error) {
       console.error("Error creating category:", error)
@@ -161,16 +240,23 @@ export const CategoryProvider = ({ children }) => {
   // Update category
   const updateCategory = async (categoryId, updates) => {
     try {
+      if (!categoryId || !updates || typeof updates !== "object") {
+        return { success: false, error: "Invalid update data" }
+      }
+
       const result = await dbService.categories.update(categoryId, updates)
 
-      if (result.success) {
+      if (result && result.success) {
         dispatch({
           type: ACTIONS.UPDATE_CATEGORY,
           payload: { ...updates, id: categoryId },
         })
         return { success: true, category: result.data }
       } else {
-        return { success: false, error: result.error }
+        return {
+          success: false,
+          error: result?.error || "Failed to update category",
+        }
       }
     } catch (error) {
       console.error("Error updating category:", error)
@@ -181,14 +267,21 @@ export const CategoryProvider = ({ children }) => {
   // Delete category
   const deleteCategory = async (categoryId) => {
     try {
+      if (!categoryId) {
+        return { success: false, error: "Invalid category ID" }
+      }
+
       const result = await dbService.categories.delete(categoryId)
       console.log("Delete category result:", categoryId, "result", result)
 
-      if (result.success) {
+      if (result && result.success) {
         dispatch({ type: ACTIONS.DELETE_CATEGORY, payload: categoryId })
         return { success: true }
       } else {
-        return { success: false, error: result.error }
+        return {
+          success: false,
+          error: result?.error || "Failed to delete category",
+        }
       }
     } catch (error) {
       console.error("Error deleting category:", error)
@@ -198,11 +291,23 @@ export const CategoryProvider = ({ children }) => {
 
   // Utility functions
   const getCategoryById = (categoryId) => {
-    return state.categories.find((category) => category.id === categoryId)
+    if (!categoryId) return null
+    return (
+      state.categories.find(
+        (category) => category && category.id === categoryId
+      ) || null
+    )
   }
 
   const getCategoriesByType = (type) => {
-    return type === "expense" ? state.expenseCategories : state.incomeCategories
+    if (type === "expense") {
+      return Array.isArray(state.expenseCategories)
+        ? state.expenseCategories
+        : []
+    } else if (type === "income") {
+      return Array.isArray(state.incomeCategories) ? state.incomeCategories : []
+    }
+    return []
   }
 
   const clearError = () => {
@@ -216,10 +321,14 @@ export const CategoryProvider = ({ children }) => {
 
   const value = {
     // State
-    categories: state.categories,
-    expenseCategories: state.expenseCategories,
-    incomeCategories: state.incomeCategories,
-    loading: state.loading,
+    categories: Array.isArray(state.categories) ? state.categories : [],
+    expenseCategories: Array.isArray(state.expenseCategories)
+      ? state.expenseCategories
+      : [],
+    incomeCategories: Array.isArray(state.incomeCategories)
+      ? state.incomeCategories
+      : [],
+    loading: Boolean(state.loading),
     error: state.error,
 
     // Actions

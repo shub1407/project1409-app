@@ -28,7 +28,10 @@ class SplitBudgetApiService {
         throw new Error(`Unknown entity type: ${tableName}`)
       }
 
-      Logger.info(`🔄 Creating ${tableName}:`, entityData)
+      Logger.info(
+        `[SplitBudgetApiService]🔄 Creating ${tableName}:`,
+        entityData
+      )
 
       const response = await apiClient.post(endpoint, entityData)
 
@@ -183,13 +186,23 @@ class SplitBudgetApiService {
       if (!response.success) {
         throw new Error(response.error || `Failed to fetch ${tableName}`)
       }
+
       const raw =
         response.data?.data?.data ?? response.data?.data ?? response.data
 
       let entities = Array.isArray(raw) ? raw : []
-      entities = toSnakeCase(entities)
       Logger.info(`📥 Fetched ${entities.length} ${tableName} records`)
       Logger.info(`📥 ${tableName} data:`, entities)
+      if (tableName === "schedule_transactions") {
+        entities = entities.map((e) => ({
+          ...e,
+          executionHistory: JSON.stringify(e.executionHistory || "[]"),
+          tags: JSON.stringify(e.tags || "[]"),
+          metadata: JSON.stringify(e.metadata || "{}"),
+          notificationSettings: JSON.stringify(e.notificationSettings || "{}"),
+        }))
+      }
+      entities = toSnakeCase(entities)
 
       return entities
     } catch (error) {

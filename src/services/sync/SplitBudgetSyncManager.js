@@ -2,10 +2,10 @@
 
 import NetInfo from "@react-native-community/netinfo"
 import { AppState } from "react-native"
+import { toCamelCase } from "../../utility/caseMapper"
 import { Logger } from "../../utility/logger"
 import { splitBudgetApiService } from "../api/SplitBudgetApiService"
 import { SplitBudgetOperationQueue } from "./SplitBudgetOperationQueue"
-
 export class SplitBudgetSyncManager {
   constructor(db, repositoryFactory) {
     this.db = db
@@ -37,6 +37,8 @@ export class SplitBudgetSyncManager {
       transactions: () => this.repositoryFactory.getTransactionRepository(),
       schedule_transactions: () =>
         this.repositoryFactory.getScheduledTransactionRepository(),
+      scheduled_transaction_executions: () =>
+        this.repositoryFactory.getScheduledTransactionExecutionRepository(),
     }
 
     this.setupListeners()
@@ -393,8 +395,6 @@ export class SplitBudgetSyncManager {
 
     switch (operation_type) {
       case "CREATE":
-        console.log(`🆕 Creating ${table_name} with data:`, record_data)
-
         const cloudEntity = await splitBudgetApiService.createEntity(
           table_name,
           normalizedData
@@ -493,6 +493,7 @@ export class SplitBudgetSyncManager {
       "categories",
       "transactions",
       "schedule_transactions",
+      "scheduled_transaction_executions",
     ]
 
     let totalChanges = 0
@@ -503,7 +504,10 @@ export class SplitBudgetSyncManager {
           tableName,
           lastSync
         )
-        Logger.debug(`Pulled remote changes(${tableName}):`, remoteEntities)
+        Logger.debug(
+          `[SplitBudgetSync] Pulled remote changes(${tableName}):\n`,
+          remoteEntities
+        )
 
         console.log(`📥 Received ${remoteEntities.length} remote ${tableName}`)
         for (const remoteEntity of remoteEntities) {
@@ -551,10 +555,13 @@ export class SplitBudgetSyncManager {
         else return null
       })
 
-      console.log("Creating local entity for remote:", {
-        tableName,
-        remoteEntity,
-      })
+      Logger.debug(
+        "[SplitBudgetSync][create-local-from-remote] Creating local entity for remote:",
+        {
+          tableName,
+          remoteEntity,
+        }
+      )
 
       await this.db.runAsync(
         `INSERT OR REPLACE INTO ${tableName} (${columns.join(
@@ -738,15 +745,18 @@ export class SplitBudgetSyncManager {
 
   //helper functions
   normalizeScheduledTransaction(data) {
+    data = toCamelCase(data)
+
     let obj = {
       ...data,
       isActive: Boolean(data.isActive),
       isDeleted: Boolean(data.isDeleted),
       isRecurring: Boolean(data.isRecurring),
       tags: Array.isArray(data.tags) ? data.tags : [],
-      executionHistory: Array.isArray(data.executionHistory)
-        ? data.executionHistory
-        : [],
+      executionHistory:
+        typeof data.executionHistory === "string"
+          ? JSON.parse(data.executionHistory)
+          : [],
       metadata:
         typeof data.metadata === "string"
           ? JSON.parse(data.metadata)
@@ -766,6 +776,7 @@ export class SplitBudgetSyncManager {
     if (!obj.endDate) {
       delete obj.endDate
     }
+    if (!obj.notes) obj.notes = ""
 
     Logger.debug("Normalized scheduled transaction:", obj)
     return obj

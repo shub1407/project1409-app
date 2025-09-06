@@ -1,3 +1,4 @@
+import { router } from "expo-router"
 import { useEffect, useState } from "react"
 import {
   Alert,
@@ -433,6 +434,12 @@ const DebugDB = () => {
             onPress={() => handleSync()}
           >
             <Text style={styles.quickActionText}>Trigger Sync</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickActionButton}
+            onPress={() => router.push("/users/home/log-viewer")}
+          >
+            <Text style={styles.quickActionText}>View Logs</Text>
           </TouchableOpacity>
         </View>
 

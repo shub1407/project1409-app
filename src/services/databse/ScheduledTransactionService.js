@@ -181,12 +181,12 @@ export class ScheduledTransactionService {
       }
 
       // Check sufficient balance for expenses and transfers
-      if (
-        (scheduledTxn.type === "expense" || scheduledTxn.type === "transfer") &&
-        account.balance < scheduledTxn.amount
-      ) {
-        throw new Error("Insufficient balance in source account")
-      }
+      // if (
+      //   (scheduledTxn.type === "expense" || scheduledTxn.type === "transfer") &&
+      //   account.balance < scheduledTxn.amount
+      // ) {
+      //   throw new Error("Insufficient balance in source account")
+      // }
 
       // Calculate opening and closing balances
       const openingBalance = account.balance
