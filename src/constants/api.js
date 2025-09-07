@@ -4,10 +4,18 @@ const LOCAL_IP = "192.168.137.1" // ✅ Replace with your actual IP
 export const API_CONFIG = {
   BASE_URL: __DEV__
     ? `http://${LOCAL_IP}:3000/api/v1`
-    : "https://project14-backend.vercel.app/api",
+    : "https://sync-server-1409.vercel.app/api/v1",
+
   TIMEOUT: 15000,
   RETRY_ATTEMPTS: 3,
 }
+
+// export const API_CONFIG = {
+//   BASE_URL: "https://sync-server-1409.vercel.app/api/v1",
+
+//   TIMEOUT: 15000,
+//   RETRY_ATTEMPTS: 3,
+// }
 
 export const ENDPOINTS = {
   AUTH: {
