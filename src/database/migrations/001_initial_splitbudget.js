@@ -73,6 +73,9 @@ export const migration001 = {
           last_synced INTEGER DEFAULT 0,
           version INTEGER DEFAULT 1,
 
+          source TEXT DEFAULT 'manual' CHECK (source IN ('manual', 'sms', 'scheduled')),
+
+
           FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
           FOREIGN KEY (to_account_id) REFERENCES accounts(id) ON DELETE CASCADE,
           FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE

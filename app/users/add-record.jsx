@@ -419,9 +419,6 @@ export default function AddTransactionScreen() {
         note: formData.note.trim(),
         // Enhanced metadata for SMS transactions
         source: isFromSMS ? "sms" : "manual",
-        originalSMS: isFromSMS ? smsTransaction?.message : null,
-        smsPhone: isFromSMS ? smsTransaction?.phone : null,
-        parsedData: isFromSMS ? parsedSMSData : null,
       }
 
       const result = await createTransaction(transactionData)
@@ -477,6 +474,7 @@ export default function AddTransactionScreen() {
                   await BackgroundSMSService.clearTransaction(
                     smsTransaction.key
                   )
+                  resetForm()
                 }
               } catch (error) {
                 console.error("Error dismissing SMS transaction:", error)

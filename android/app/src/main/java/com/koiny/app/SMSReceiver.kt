@@ -1,4 +1,4 @@
-package com.splitbudget.app
+package com.koiny.app
 
 import android.content.BroadcastReceiver
 import android.content.Context

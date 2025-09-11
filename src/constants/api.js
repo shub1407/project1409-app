@@ -25,6 +25,7 @@ export const ENDPOINTS = {
     REFRESH: "/auth/refresh",
     FORGOT_PASSWORD: "/auth/forgot-password",
     RESET_PASSWORD: "/auth/reset-password",
+    GOOGLE_LOGIN: "/auth/google",
   },
   USER: {
     PROFILE: "/user/profile",

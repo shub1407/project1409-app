@@ -1,17 +1,36 @@
 import { Ionicons } from "@expo/vector-icons"
-import { Tabs } from "expo-router"
-import { useEffect } from "react"
+import { Tabs, useFocusEffect } from "expo-router"
+import { useCallback, useEffect, useRef } from "react"
 import { Platform, View } from "react-native"
 import { AccountsProvider } from "../../src/context/AccountContext"
 import { CategoryProvider } from "../../src/context/CategoryContext"
 import { ReportsProvider } from "../../src/context/ReportContext"
+import { useNotificationHandler } from "../../src/hooks/useNotificationHandler"
 import { useSplitBudgetSync } from "../../src/hooks/useSplitBudgetSync"
+
 export default function TabLayout() {
   const { triggerSync, syncState, isReady } = useSplitBudgetSync()
+
+  const hasCheckedNotification = useRef(false)
+
+  // Check if the app is opened from notification
   useEffect(() => {
     console.log("Database is ready, triggering initial sync...")
     console.log("syncState:", syncState)
   }, [isReady])
+  // Handle notification navigation with custom hook
+  const notificationState = useNotificationHandler()
+
+  // Reset the check flag when app comes to foreground
+  useFocusEffect(
+    useCallback(() => {
+      // Reset flag when returning to tab layout
+      return () => {
+        hasCheckedNotification.current = false
+      }
+    }, [])
+  )
+
   return (
     <AccountsProvider>
       <CategoryProvider>
@@ -64,7 +83,6 @@ export default function TabLayout() {
               name="records"
               options={{
                 title: "Records",
-                // Hide tab bar on this screen
                 tabBarIcon: ({ color, size, focused }) => (
                   <Ionicons
                     name={focused ? "list" : "list-outline"}

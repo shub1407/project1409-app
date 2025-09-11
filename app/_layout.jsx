@@ -7,14 +7,17 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 import { AuthProvider } from "../src/context/AuthContext"
 import { SMSProvider } from "../src/context/SMSProvider"
 import { DatabaseProvider } from "../src/database/providers/DatabaseProvider"
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
+      {/* Global default StatusBar */}
+      <StatusBar style="dark" />
+
       <SafeAreaView
         style={styles.container}
         edges={["top", "left", "right", "bottom"]}
       >
-        <StatusBar style="light" />
         <Suspense fallback={<Text>Loading...</Text>}>
           <SQLiteProvider databaseName="split_db.db" useSuspense>
             <SMSProvider>
@@ -37,6 +40,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff", // set a global background
+    backgroundColor: "#fff", // this color shows under status bar
   },
 })

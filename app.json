@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "SplitBudget",
-    "slug": "splitbudget",
+    "name": "Koiny",
+    "slug": "koiny",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "splitbudget",
+    "scheme": "koiny",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.splitbudget.app"
+      "bundleIdentifier": "com.koiny.app"
     },
     "android": {
-      "package": "com.splitbudget.app",
+      "package": "com.koiny.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -35,6 +35,12 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.622393446179-5b1rdti5tut32gf9rvr7ibn8fkioamt3"
+        }
       ]
     ],
     "experiments": {
@@ -43,8 +49,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9dbd6550-f7dd-4c3a-939d-f14939211c62"
+        "projectId": "aa54e944-f07c-4dc4-8c3b-9dfa0d036498"
       }
-    }
+    },
+    "owner": "sks.bholi2"
   }
 }

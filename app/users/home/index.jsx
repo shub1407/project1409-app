@@ -13,9 +13,11 @@ import {
   View,
 } from "react-native"
 import ListOfAccounts from "../../../src/components/ListOfAccounts"
+import SMSTransactionModal from "../../../src/components/SMSTransactionModal"
 import TransactionCard from "../../../src/components/TransactionCard"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useAuth } from "../../../src/context/AuthContext"
+import { useSMS } from "../../../src/context/SMSProvider"
 import { useTransaction } from "../../../src/hooks/useTransaction"
 
 const { width: screenWidth } = Dimensions.get("window")
@@ -26,16 +28,102 @@ export default function AccountsScreen() {
   const [totalBalance, setTotalBalance] = useState(0)
   const [transactions, setTransactions] = useState([])
   const [transactionsLoading, setTransactionsLoading] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  // Modern SMS Modal state
+  const [showSMSModal, setShowSMSModal] = useState(false)
+  const [currentSMSTransaction, setCurrentSMSTransaction] = useState(null)
+  const [currentSMSIndex, setCurrentSMSIndex] = useState(0)
   const { user } = useAuth()
   const { accounts, refreshAccounts, loading } = useAccountsContext()
   const { getTransactions } = useTransaction()
+  const {
+    pendingTransactions,
+    checkPendingTransactions,
+    clearTransactionByKey,
+    clearAllTransactions,
+  } = useSMS()
 
   // Animated value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
     loadTransactions()
+    showPendingTransactionsFromSMS()
   }, [])
+
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     checkPendingTransactions()
+  //     showPendingTransactionsFromSMS()
+  //   }, [])
+  // )
+
+  const showPendingTransactionsFromSMS = async () => {
+    setPendingCount(pendingTransactions.length)
+    console.log("[SMS] Pending Transactions:", pendingTransactions)
+
+    // Show modern modal for latest transaction
+    if (pendingTransactions.length > 0) {
+      const latest = pendingTransactions[0]
+      console.log(
+        "[SMS] Showing modern modal for latest pending transaction:",
+        latest
+      )
+
+      setCurrentSMSTransaction(latest)
+      setShowSMSModal(true)
+    }
+  }
+
+  // Modern Modal Handlers
+  const handleSMSModalDismiss = () => {
+    setShowSMSModal(false)
+    setCurrentSMSIndex(0)
+  }
+  const handleNextSMSTransaction = () => {
+    if (currentSMSIndex < pendingTransactions.length - 1) {
+      setCurrentSMSIndex(currentSMSIndex + 1)
+    }
+  }
+
+  const handlePreviousSMSTransaction = () => {
+    if (currentSMSIndex > 0) {
+      setCurrentSMSIndex(currentSMSIndex - 1)
+    }
+  }
+
+  const handleSkipCurrentSMS = async () => {
+    try {
+      // Remove current transaction from pending
+      const currentTransaction = pendingTransactions[currentSMSIndex]
+      await clearTransactionByKey(currentTransaction.key)
+
+      // Move to next or close if no more
+      if (currentSMSIndex < pendingTransactions.length - 1) {
+        // Will automatically show next due to updated pending list
+        checkPendingTransactions()
+      } else {
+        setShowSMSModal(false)
+        setCurrentSMSIndex(0)
+      }
+    } catch (error) {
+      console.error("Error skipping SMS transaction:", error)
+    }
+  }
+
+  const handleViewAllSMSTransactions = () => {
+    setShowSMSModal(false)
+    router.push("/users/home/notifications")
+  }
+
+  const handleAddNowTransaction = (transaction) => {
+    setShowSMSModal(false)
+    router.push({
+      pathname: "/users/add-record",
+      params: { transaction: JSON.stringify(transaction) },
+    })
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -54,7 +142,6 @@ export default function AccountsScreen() {
       const result = await getTransactions({ limit: 5 })
       if (result.success) {
         const transactions = result?.data?.transactions
-
         setTransactions(transactions || [])
       }
     } catch (error) {
@@ -158,9 +245,11 @@ export default function AccountsScreen() {
                   size={24}
                   color="#FFFFFF"
                 />
-                <View style={styles.notificationBadge}>
-                  <Text style={styles.badgeText}>3</Text>
-                </View>
+                {pendingCount > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.badgeText}>{pendingCount}</Text>
+                  </View>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -224,6 +313,7 @@ export default function AccountsScreen() {
             loading={transactionsLoading}
             onViewAll={handleViewAllTransactions}
           />
+
           <TouchableOpacity
             style={styles.recordsButton}
             onPress={handleDebugDb}
@@ -231,6 +321,19 @@ export default function AccountsScreen() {
             <Text style={styles.recordsButtonText}>Debug DB</Text>
           </TouchableOpacity>
         </Animated.ScrollView>
+
+        {/* Modern SMS Transaction Modal */}
+        <SMSTransactionModal
+          visible={showSMSModal}
+          transactions={pendingTransactions} // Pass full array
+          currentIndex={currentSMSIndex}
+          onDismiss={handleSMSModalDismiss}
+          onNext={handleNextSMSTransaction}
+          onPrevious={handlePreviousSMSTransaction}
+          onSkipCurrent={handleSkipCurrentSMS}
+          onViewAll={handleViewAllSMSTransactions}
+          onAddNow={handleAddNowTransaction}
+        />
       </SafeAreaView>
     </>
   )
@@ -330,12 +433,13 @@ const styles = StyleSheet.create({
     right: -2,
     backgroundColor: "#FF6B6B",
     borderRadius: 10,
-    width: 20,
+    minWidth: 20,
     height: 20,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#1CC29F",
+    paddingHorizontal: 4,
   },
 
   badgeText: {
@@ -429,7 +533,34 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
 
-  // Keep all your existing styles...
+  // Debug Button
+  recordsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 24,
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  recordsButtonText: {
+    color: "#1CC29F",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+
+  // Keep all your existing styles for accounts, balance, etc...
   header: {
     backgroundColor: "#1CC29F",
     paddingHorizontal: 24,
@@ -586,31 +717,6 @@ const styles = StyleSheet.create({
     color: "#1CC29F",
     fontSize: 14,
     fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-  recordsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 24,
-    marginTop: 16,
-    paddingVertical: 16,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  recordsButtonText: {
-    color: "#1CC29F",
-    fontSize: 16,
-    fontWeight: "700",
-    marginLeft: 8,
     letterSpacing: 0.5,
   },
   activitySection: {

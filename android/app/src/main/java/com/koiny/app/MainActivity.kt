@@ -1,4 +1,4 @@
-package com.splitbudget.app
+package com.koiny.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

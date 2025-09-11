@@ -1,4 +1,4 @@
-package com.splitbudget.app
+package com.koiny.app
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.ReactApplicationContext
