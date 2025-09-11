@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
-import { router } from "expo-router"
-import { useCallback, useMemo, useState } from "react"
+import { router, useLocalSearchParams } from "expo-router"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
@@ -18,11 +18,19 @@ import {
 import { useAccountsContext } from "../../src/context/AccountContext"
 import { useCategoryContext } from "../../src/context/CategoryContext"
 import { useTransaction } from "../../src/hooks/useTransaction"
+import { BackgroundSMSService } from "../../src/services/sms/BackgroundSMSService"
 import styles from "../../src/styles/add"
 
 export default function AddTransactionScreen() {
+  const params = useLocalSearchParams()
   const { createTransaction, getTransactions, updateTransaction } =
     useTransaction()
+
+  // SMS-related state
+  const [smsTransaction, setSmsTransaction] = useState(null)
+  const [isFromSMS, setIsFromSMS] = useState(false)
+  const [parsedSMSData, setParsedSMSData] = useState(null)
+
   const [formData, setFormData] = useState({
     type: "expense",
     description: "",
@@ -59,9 +67,197 @@ export default function AddTransactionScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [showDateModal, setShowDateModal] = useState(false)
 
+  // Enhanced SMS parsing function
+  const parseTransactionDetails = useCallback((message) => {
+    const result = {
+      amount: "",
+      merchant: "",
+      type: "expense",
+      suggestedCategory: "",
+      account: "",
+      date: "",
+      balance: "",
+    }
+
+    // Extract amount with advanced regex
+    const amountPattern = /(Rs\.?|₹)\s?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i
+    const amountMatch = message.match(amountPattern)
+    if (amountMatch) {
+      result.amount = amountMatch[2].replace(/,/g, "")
+    }
+
+    // Extract transaction type
+    const typePattern =
+      /\b(debited|credited|spent|received|withdrawn|deposited|paid|transferred)\b/i
+    const typeMatch = message.match(typePattern)
+    if (typeMatch) {
+      const type = typeMatch[1].toLowerCase()
+      result.type =
+        type === "debited" ||
+        type === "spent" ||
+        type === "paid" ||
+        type === "withdrawn"
+          ? "expense"
+          : "income"
+    }
+
+    // Extract merchant/vendor with improved regex
+    const merchantPatterns = [
+      /(?:at|to)\s+([\w\s&.-]+?)(?:\s+on|\s+via|\s+\.|$)/i,
+      /(?:merchant|vendor)[\s:]+([A-Z\s&.-]+)/i,
+      /(AMAZON|FLIPKART|SWIGGY|ZOMATO|UBER|PAYTM|NETFLIX|SPOTIFY)/i,
+    ]
+
+    for (const pattern of merchantPatterns) {
+      const match = message.match(pattern)
+      if (match) {
+        result.merchant = match[1].trim().replace(/\s+/g, " ")
+        break
+      }
+    }
+
+    // Extract date with multiple formats
+    const datePatterns = [
+      /\b(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\b/,
+      /\b(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4})/i,
+    ]
+
+    for (const pattern of datePatterns) {
+      const match = message.match(pattern)
+      if (match) {
+        const dateStr = match[1]
+        // Convert to ISO format
+        try {
+          const dateParts = dateStr.split(/[-/\s]/)
+          if (dateParts.length >= 3) {
+            const day = dateParts[0].padStart(2, "0")
+            const month = dateParts[1].padStart(2, "0")
+            let year = dateParts[2]
+            if (year.length === 2) {
+              year = "20" + year
+            }
+            result.date = `${year}-${month}-${day}`
+          }
+        } catch (error) {
+          console.log("Date parsing error:", error)
+        }
+        break
+      }
+    }
+
+    // Extract account information
+    const accountPattern = /(account|a\/c|card)[\s\w]*?(\d{4})/i
+    const accountMatch = message.match(accountPattern)
+    if (accountMatch) {
+      result.account = `Account ending ${accountMatch[2]}`
+    }
+
+    // Extract balance information
+    const balancePattern =
+      /(?:balance|bal)[\s:]*(?:Rs\.?|₹)\s?(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i
+    const balanceMatch = message.match(balancePattern)
+    if (balanceMatch) {
+      result.balance = balanceMatch[1].replace(/,/g, "")
+    }
+
+    // Smart category suggestion based on merchant
+    const categoryMapping = {
+      AMAZON: "Shopping",
+      FLIPKART: "Shopping",
+      MYNTRA: "Shopping",
+      SWIGGY: "Food & Dining",
+      ZOMATO: "Food & Dining",
+      DOMINOS: "Food & Dining",
+      MCDONALD: "Food & Dining",
+      UBER: "Transportation",
+      OLA: "Transportation",
+      RAPIDO: "Transportation",
+      PAYTM: "Bills & Utilities",
+      NETFLIX: "Entertainment",
+      SPOTIFY: "Entertainment",
+      PRIME: "Entertainment",
+      ELECTRICITY: "Bills & Utilities",
+      BSNL: "Bills & Utilities",
+      AIRTEL: "Bills & Utilities",
+      JIO: "Bills & Utilities",
+      FUEL: "Transportation",
+      PETROL: "Transportation",
+      ATM: "Others",
+      MEDICAL: "Healthcare",
+      PHARMACY: "Healthcare",
+      APOLLO: "Healthcare",
+    }
+
+    if (result.merchant) {
+      for (const [key, category] of Object.entries(categoryMapping)) {
+        if (result.merchant.toUpperCase().includes(key)) {
+          result.suggestedCategory = category
+          break
+        }
+      }
+    }
+
+    return result
+  }, [])
+
+  // Initialize with SMS data if available
+  useEffect(() => {
+    if (params.transaction) {
+      try {
+        const txn = JSON.parse(params.transaction)
+        setSmsTransaction(txn)
+        setIsFromSMS(true)
+
+        // Parse SMS message for additional details
+        const parsedDetails = parseTransactionDetails(txn.message)
+        setParsedSMSData(parsedDetails)
+
+        // Set form data with parsed information
+        setFormData((prev) => ({
+          ...prev,
+          type: parsedDetails.type,
+          amount: parsedDetails.amount || txn.amount || "",
+          description:
+            parsedDetails.merchant || `Transaction from ${txn.phone}`,
+          date: parsedDetails.date || prev.date,
+          note: `Auto-detected from SMS\nOriginal: ${txn.message.substring(
+            0,
+            100
+          )}${txn.message.length > 100 ? "..." : ""}`,
+        }))
+
+        // Auto-select category if we have a suggestion
+        if (parsedDetails.suggestedCategory) {
+          // Find category ID by name
+          setTimeout(() => {
+            const categoryList =
+              parsedDetails.type === "expense"
+                ? expenseCategories
+                : incomeCategories
+            const foundCategory = categoryList.find((cat) =>
+              cat.label
+                .toLowerCase()
+                .includes(parsedDetails.suggestedCategory.toLowerCase())
+            )
+            if (foundCategory) {
+              setFormData((prev) => ({ ...prev, category: foundCategory.id }))
+            }
+          }, 100)
+        }
+      } catch (error) {
+        console.error("Error parsing SMS transaction:", error)
+      }
+    }
+  }, [
+    params.transaction,
+    parseTransactionDetails,
+    expenseCategories,
+    incomeCategories,
+  ])
+
   const resetForm = useCallback(() => {
     setFormData({
-      type: "income",
+      type: "expense",
       description: "",
       amount: "",
       fromAccount: "",
@@ -70,6 +266,9 @@ export default function AddTransactionScreen() {
       date: new Date().toISOString().slice(0, 10),
       note: "",
     })
+    setSmsTransaction(null)
+    setIsFromSMS(false)
+    setParsedSMSData(null)
   }, [])
 
   // Transaction Types
@@ -218,54 +417,96 @@ export default function AddTransactionScreen() {
         description: formData.description.trim(),
         date: formData.date,
         note: formData.note.trim(),
+        // Enhanced metadata for SMS transactions
+        source: isFromSMS ? "sms" : "manual",
+        originalSMS: isFromSMS ? smsTransaction?.message : null,
+        smsPhone: isFromSMS ? smsTransaction?.phone : null,
+        parsedData: isFromSMS ? parsedSMSData : null,
       }
 
-      // Call API to save transaction
-      //await transactionService.createTransaction(transactionData)
-      //call to local db
       const result = await createTransaction(transactionData)
 
-      // Refresh accounts and reset form
+      // Clear from pending SMS transactions if this was from SMS
+      if (isFromSMS && smsTransaction?.key) {
+        await BackgroundSMSService.clearTransaction(smsTransaction.key)
+      }
+
       await refreshAccounts()
       resetForm()
+
       Alert.alert(
-        "Success",
-        `${
-          formData.type.charAt(0).toUpperCase() + formData.type.slice(1)
-        } added successfully!`,
+        "Success! 🎉",
+        `${formData.type.charAt(0).toUpperCase() + formData.type.slice(1)} ${
+          isFromSMS ? "from SMS " : ""
+        }added successfully!`,
         [
           {
-            text: "OK",
+            text: "Add Another",
+            onPress: () => {
+              // Stay on screen for another transaction
+              resetForm()
+            },
+          },
+          {
+            text: "Done",
             onPress: () => router.back(),
           },
         ]
       )
     } catch (error) {
+      console.error("Transaction creation error:", error)
       Alert.alert("Error", "Failed to add transaction. Please try again.")
     } finally {
       setLoading(false)
     }
-  }, [formData])
+  }, [formData, isFromSMS, smsTransaction, parsedSMSData])
 
   const handleCancel = useCallback(() => {
-    const hasChanges = formData.description || formData.amount || formData.note
-    if (hasChanges) {
+    if (isFromSMS) {
       Alert.alert(
-        "Discard Changes?",
-        "Are you sure you want to discard your changes?",
+        "Dismiss SMS Transaction?",
+        "This will remove the transaction from your pending list. Are you sure?",
         [
           { text: "Keep Editing", style: "cancel" },
           {
-            text: "Discard",
+            text: "Dismiss",
             style: "destructive",
-            onPress: () => router.back(),
+            onPress: async () => {
+              try {
+                if (smsTransaction?.key) {
+                  await BackgroundSMSService.clearTransaction(
+                    smsTransaction.key
+                  )
+                }
+              } catch (error) {
+                console.error("Error dismissing SMS transaction:", error)
+              }
+              router.back()
+            },
           },
         ]
       )
     } else {
-      router.back()
+      const hasChanges =
+        formData.description || formData.amount || formData.note
+      if (hasChanges) {
+        Alert.alert(
+          "Discard Changes?",
+          "Are you sure you want to discard your changes?",
+          [
+            { text: "Keep Editing", style: "cancel" },
+            {
+              text: "Discard",
+              style: "destructive",
+              onPress: () => router.back(),
+            },
+          ]
+        )
+      } else {
+        router.back()
+      }
     }
-  }, [formData])
+  }, [formData, isFromSMS, smsTransaction])
 
   const updateFormData = useCallback((key, value) => {
     setFormData((prev) => ({
@@ -298,7 +539,7 @@ export default function AddTransactionScreen() {
     <>
       <StatusBar barStyle="light-content" backgroundColor={getTypeColor()} />
       <SafeAreaView style={styles.container}>
-        {/* Dynamic Header Color */}
+        {/* Enhanced Header with SMS indicator */}
         <View style={[styles.header, { backgroundColor: getTypeColor() }]}>
           <TouchableOpacity
             onPress={handleCancel}
@@ -307,9 +548,17 @@ export default function AddTransactionScreen() {
           >
             <Ionicons name="close" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            Add {getSelectedType()?.label || "Transaction"}
-          </Text>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>
+              {isFromSMS ? "📱 SMS " : "Add "}
+              {getSelectedType()?.label || "Transaction"}
+            </Text>
+            {isFromSMS && smsTransaction && (
+              <Text style={styles.headerSubtitle}>
+                From: {smsTransaction.phone}
+              </Text>
+            )}
+          </View>
           <TouchableOpacity
             onPress={handleSave}
             style={[
@@ -325,6 +574,34 @@ export default function AddTransactionScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* SMS Original Message Display */}
+        {isFromSMS && smsTransaction && (
+          <View style={styles.smsMessageContainer}>
+            <View style={styles.smsHeader}>
+              <Ionicons name="mail" size={16} color="#666" />
+              <Text style={styles.smsLabel}>Original SMS Message</Text>
+              {parsedSMSData?.balance && (
+                <View style={styles.balanceChip}>
+                  <Text style={styles.balanceText}>
+                    Bal: ₹{parsedSMSData.balance}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.smsMessage} numberOfLines={3}>
+              {smsTransaction.message}
+            </Text>
+            <View style={styles.smsFooter}>
+              <Text style={styles.smsTime}>📅 {smsTransaction.timestamp}</Text>
+              {parsedSMSData?.account && (
+                <Text style={styles.smsAccount}>
+                  🏦 {parsedSMSData.account}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
 
         <ScrollView
           style={styles.content}
@@ -359,11 +636,18 @@ export default function AddTransactionScreen() {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+              <View style={styles.selectorRight}>
+                {isFromSMS && (
+                  <View style={styles.autoDetectedBadge}>
+                    <Text style={styles.autoDetectedText}>📱</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+              </View>
             </TouchableOpacity>
           </View>
 
-          {/* Amount Input - With Rupee Symbol Only */}
+          {/* Amount Input - Enhanced with SMS detection indicator */}
           <View style={styles.section}>
             <View style={styles.amountContainer}>
               <Ionicons
@@ -383,10 +667,15 @@ export default function AddTransactionScreen() {
                 onChangeText={formatAmount}
                 keyboardType="numeric"
               />
+              {isFromSMS && (
+                <View style={styles.autoDetectedBadge}>
+                  <Text style={styles.autoDetectedText}>Auto</Text>
+                </View>
+              )}
             </View>
           </View>
 
-          {/* Description Input - With Notes Icon Only */}
+          {/* Description Input - Enhanced with SMS parsing */}
           <View style={styles.section}>
             <View style={styles.descriptionContainer}>
               <Ionicons
@@ -403,10 +692,20 @@ export default function AddTransactionScreen() {
                 onChangeText={(value) => updateFormData("description", value)}
                 autoCapitalize="sentences"
               />
+              {isFromSMS && parsedSMSData?.merchant && (
+                <View style={styles.autoDetectedBadge}>
+                  <Text style={styles.autoDetectedText}>🏪</Text>
+                </View>
+              )}
             </View>
+            {isFromSMS && parsedSMSData?.suggestedCategory && (
+              <Text style={styles.suggestionText}>
+                💡 Suggested category: {parsedSMSData.suggestedCategory}
+              </Text>
+            )}
           </View>
 
-          {/* Account Selection - With Arrow for Transfer */}
+          {/* Account Selection - Same as your original with enhancement */}
           {formData.type === "transfer" ? (
             <View style={styles.section}>
               <View style={styles.transferContainer}>
@@ -635,7 +934,14 @@ export default function AddTransactionScreen() {
                     </Text>
                   </View>
                 )}
-                <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+                <View style={styles.categoryRight}>
+                  {isFromSMS && parsedSMSData?.suggestedCategory && (
+                    <View style={styles.autoDetectedBadge}>
+                      <Text style={styles.autoDetectedText}>💡</Text>
+                    </View>
+                  )}
+                  <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+                </View>
               </TouchableOpacity>
             </View>
           )}
@@ -669,7 +975,14 @@ export default function AddTransactionScreen() {
                   </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+              <View style={styles.dateRight}>
+                {isFromSMS && parsedSMSData?.date && (
+                  <View style={styles.autoDetectedBadge}>
+                    <Text style={styles.autoDetectedText}>📅</Text>
+                  </View>
+                )}
+                <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -691,8 +1004,23 @@ export default function AddTransactionScreen() {
                 multiline
                 textAlignVertical="top"
               />
+              {isFromSMS && (
+                <View style={styles.autoDetectedBadge}>
+                  <Text style={styles.autoDetectedText}>📝</Text>
+                </View>
+              )}
             </View>
           </View>
+
+          {/* SMS Debug Info (only in development) */}
+          {__DEV__ && isFromSMS && parsedSMSData && (
+            <View style={styles.debugContainer}>
+              <Text style={styles.debugTitle}>🔧 Debug Info</Text>
+              <Text style={styles.debugText}>
+                Parsed: {JSON.stringify(parsedSMSData, null, 2)}
+              </Text>
+            </View>
+          )}
         </ScrollView>
 
         {/* Native Date Picker */}
@@ -757,7 +1085,7 @@ export default function AddTransactionScreen() {
             />
           ))}
 
-        {/* All existing modals remain the same */}
+        {/* All your existing modals remain the same */}
         {/* Transaction Type Modal */}
         <Modal
           visible={showTypeModal}
@@ -972,6 +1300,14 @@ export default function AddTransactionScreen() {
             />
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Select Category</Text>
+              {isFromSMS && parsedSMSData?.suggestedCategory && (
+                <View style={styles.suggestionBanner}>
+                  <Ionicons name="bulb" size={16} color="#FF9500" />
+                  <Text style={styles.suggestionBannerText}>
+                    Suggested: {parsedSMSData.suggestedCategory}
+                  </Text>
+                </View>
+              )}
               <ScrollView showsVerticalScrollIndicator={false}>
                 {categories.map((category) => (
                   <TouchableOpacity
@@ -980,6 +1316,15 @@ export default function AddTransactionScreen() {
                       styles.modalOption,
                       formData.category === category.id &&
                         styles.modalOptionActive,
+                      // Highlight suggested category
+                      isFromSMS &&
+                        parsedSMSData?.suggestedCategory &&
+                        category.label
+                          .toLowerCase()
+                          .includes(
+                            parsedSMSData.suggestedCategory.toLowerCase()
+                          ) &&
+                        styles.suggestedCategoryOption,
                     ]}
                     onPress={() => {
                       updateFormData("category", category.id)
@@ -1002,6 +1347,17 @@ export default function AddTransactionScreen() {
                       <Text style={styles.modalOptionTitle}>
                         {category.label}
                       </Text>
+                      {isFromSMS &&
+                        parsedSMSData?.suggestedCategory &&
+                        category.label
+                          .toLowerCase()
+                          .includes(
+                            parsedSMSData.suggestedCategory.toLowerCase()
+                          ) && (
+                          <View style={styles.suggestionBadge}>
+                            <Text style={styles.suggestionBadgeText}>💡</Text>
+                          </View>
+                        )}
                     </View>
                     {formData.category === category.id && (
                       <Ionicons

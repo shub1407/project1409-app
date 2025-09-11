@@ -11,6 +11,18 @@ export default function HomeLayout() {
       />
       <Stack.Screen name="add-account" options={{ title: "Add Account" }} />
       <Stack.Screen name="edit-account" options={{ title: "Edit Account" }} />
+
+      <Stack.Screen
+        name="notifications"
+        options={{ title: "Notifications", tabBarStyle: { display: "none" } }}
+      />
+      <Stack.Screen
+        name="add-txn-msg"
+        options={{
+          title: "Add Transaction from SMS",
+          tabBarStyle: { display: "none" },
+        }}
+      />
     </Stack>
   )
 }

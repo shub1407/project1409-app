@@ -5,6 +5,7 @@ import { Suspense } from "react"
 import { StyleSheet, Text } from "react-native"
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context"
 import { AuthProvider } from "../src/context/AuthContext"
+import { SMSProvider } from "../src/context/SMSProvider"
 import { DatabaseProvider } from "../src/database/providers/DatabaseProvider"
 export default function RootLayout() {
   return (
@@ -16,14 +17,16 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <Suspense fallback={<Text>Loading...</Text>}>
           <SQLiteProvider databaseName="split_db.db" useSuspense>
-            <DatabaseProvider>
-              <AuthProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(auth)" />
-                  <Stack.Screen name="users" />
-                </Stack>
-              </AuthProvider>
-            </DatabaseProvider>
+            <SMSProvider>
+              <DatabaseProvider>
+                <AuthProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="users" />
+                  </Stack>
+                </AuthProvider>
+              </DatabaseProvider>
+            </SMSProvider>
           </SQLiteProvider>
         </Suspense>
       </SafeAreaView>

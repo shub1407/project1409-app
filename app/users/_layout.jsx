@@ -130,6 +130,13 @@ export default function TabLayout() {
                 ),
               }}
             />
+            <Tabs.Screen
+              name="notifications"
+              options={{
+                title: "Notifications",
+                tabBarStyle: { display: "none" },
+              }}
+            />
           </Tabs>
         </ReportsProvider>
       </CategoryProvider>

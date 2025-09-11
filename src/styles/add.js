@@ -813,4 +813,145 @@ export default StyleSheet.create({
     fontWeight: "600",
     color: "#6B7280",
   },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: "#FFFFFF",
+    opacity: 0.8,
+    marginTop: 2,
+  },
+  smsMessageContainer: {
+    backgroundColor: "#F8F9FA",
+    margin: 15,
+    padding: 15,
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: "#007AFF",
+  },
+  smsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  smsLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#666",
+    marginLeft: 6,
+    flex: 1,
+  },
+  balanceChip: {
+    backgroundColor: "#E8F5E8",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  balanceText: {
+    fontSize: 10,
+    color: "#1CC29F",
+    fontWeight: "600",
+  },
+  smsMessage: {
+    fontSize: 14,
+    color: "#333",
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  smsFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  smsTime: {
+    fontSize: 11,
+    color: "#888",
+  },
+  smsAccount: {
+    fontSize: 11,
+    color: "#888",
+  },
+  selectorRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  categoryRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  dateRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  autoDetectedBadge: {
+    backgroundColor: "#007AFF",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    minWidth: 35,
+    alignItems: "center",
+  },
+  autoDetectedText: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    fontWeight: "600",
+  },
+  suggestionText: {
+    fontSize: 12,
+    color: "#FF9500",
+    fontStyle: "italic",
+    marginTop: 4,
+    marginLeft: 30,
+  },
+  suggestionBanner: {
+    backgroundColor: "#FFF3E0",
+    padding: 12,
+    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  suggestionBannerText: {
+    fontSize: 14,
+    color: "#FF9500",
+    fontWeight: "500",
+    marginLeft: 8,
+  },
+  suggestedCategoryOption: {
+    borderWidth: 1,
+    borderColor: "#FF9500",
+    backgroundColor: "#FFF3E0",
+  },
+  suggestionBadge: {
+    marginLeft: "auto",
+  },
+  suggestionBadgeText: {
+    fontSize: 16,
+  },
+  debugContainer: {
+    backgroundColor: "#F0F0F0",
+    margin: 15,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DDD",
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#666",
+    marginBottom: 5,
+  },
+  debugText: {
+    fontSize: 10,
+    color: "#444",
+    fontFamily: "monospace",
+  },
 })
+
+// Add these new styles to your existing styles object

@@ -100,6 +100,7 @@ export default function AccountsScreen() {
 
   const handleNotificationsPress = () => {
     console.log("Notifications pressed")
+    router.push("/users/home/notifications")
   }
 
   // Get greeting based on time
