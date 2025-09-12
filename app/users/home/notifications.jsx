@@ -236,7 +236,7 @@ export default function PendingTransactionsScreen() {
               style={styles.refreshEmptyButton}
               onPress={onRefresh}
             >
-              <Ionicons name="refresh" size={20} color="#007AFF" />
+              <Ionicons name="refresh" size={20} color="#e0ecf8ff" />
               <Text style={styles.refreshEmptyButtonText}>
                 Check for new messages
               </Text>
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   refreshEmptyButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#007AFF",
+    backgroundColor: "#1CC29F",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 20,

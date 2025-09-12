@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import { Link, router } from "expo-router"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   Animated,
   Dimensions,
@@ -8,7 +8,6 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +15,7 @@ import {
   View,
 } from "react-native"
 import { useAuth } from "../../src/context/AuthContext"
+import { useStyles } from "../../src/context/StyleContext"
 import { Logger } from "../../src/utility/logger"
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
@@ -41,6 +41,13 @@ export default function LoginScreen() {
 
   // Animation values
   const shakeAnimation = useRef(new Animated.Value(0)).current
+  const { setStatusBarStyle } = useStyles()
+  useEffect(() => {
+    setStatusBarStyle({
+      backgroundColor: "#0D9488",
+      barStyle: "light",
+    })
+  }, [])
 
   // Clear all errors
   const clearErrors = () => {
@@ -175,11 +182,11 @@ export default function LoginScreen() {
 
   return (
     <>
-      <StatusBar
+      {/* <StatusBar
         barStyle="light-content"
         backgroundColor="#0D9488"
         translucent={false}
-      />
+      /> */}
       <SafeAreaView style={styles.container}>
         <View style={styles.gradientBackground}>
           <View style={styles.backgroundPattern}>

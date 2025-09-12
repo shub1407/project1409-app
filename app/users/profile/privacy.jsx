@@ -104,9 +104,11 @@ Your continued use of the app after changes constitutes acceptance of the update
         <ScrollView style={styles.content}>
           <View style={styles.introSection}>
             <Text style={styles.introTitle}>Your Privacy Matters</Text>
-            <Text style={styles.introText}>Last updated: August 16, 2025</Text>
+            <Text style={styles.introText}>
+              Last updated: September 13, 2025
+            </Text>
             <Text style={styles.introDescription}>
-              This privacy policy explains how SplitBudget collects, uses, and
+              This privacy policy explains how Koiny collects, uses, and
               protects your personal information when you use our app.
             </Text>
           </View>
@@ -127,9 +129,7 @@ Your continued use of the app after changes constitutes acceptance of the update
             <View style={styles.contactInfo}>
               <View style={styles.contactItem}>
                 <Ionicons name="mail-outline" size={18} color="#1CC29F" />
-                <Text style={styles.contactDetail}>
-                  privacy@splitbudget.com
-                </Text>
+                <Text style={styles.contactDetail}>privacy@koiny.in</Text>
               </View>
               <View style={styles.contactItem}>
                 <Ionicons name="location-outline" size={18} color="#1CC29F" />

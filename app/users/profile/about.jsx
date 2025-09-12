@@ -1,7 +1,9 @@
 import { Ionicons } from "@expo/vector-icons"
 import { router } from "expo-router"
 import {
+  Alert,
   Linking,
+  Platform,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -39,25 +41,25 @@ export default function AboutScreen() {
     {
       platform: "Website",
       icon: "globe-outline",
-      url: "https://splitbudget.com",
+      url: "https://koiny.app",
       color: "#1CC29F",
     },
     {
       platform: "Twitter",
       icon: "logo-twitter",
-      url: "https://twitter.com/splitbudgetapp",
+      url: "https://twitter.com/koinyapp",
       color: "#1DA1F2",
     },
     {
       platform: "Instagram",
       icon: "logo-instagram",
-      url: "https://instagram.com/splitbudgetapp",
+      url: "https://instagram.com/koinyapp",
       color: "#E4405F",
     },
     {
       platform: "LinkedIn",
       icon: "logo-linkedin",
-      url: "https://linkedin.com/company/splitbudget",
+      url: "https://linkedin.com/company/koiny",
       color: "#0077B5",
     },
   ]
@@ -67,6 +69,97 @@ export default function AboutScreen() {
       await Linking.openURL(url)
     } catch (error) {
       console.error("Failed to open URL:", error)
+    }
+  }
+
+  const openWhatsAppSupport = async () => {
+    const phoneNumber = "+918340532645" // Replace with your actual WhatsApp support number
+
+    // Detailed message with app info
+    const message = `Hi Koiny Support Team! 👋
+
+I need help with the Koiny app. Here are my details:
+📱 App Version: 1.0.0
+🤖 Device: ${Platform.OS === "ios" ? "iOS" : "Android"}
+📅 Date: ${new Date().toLocaleDateString()}
+
+Issue: [Please describe your issue here]
+
+Thanks for your help! 🙏`
+
+    // WhatsApp URLs
+    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
+      message
+    )}`
+    const whatsappWebUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(
+      message
+    )}`
+
+    try {
+      // First try to open WhatsApp app
+      const supported = await Linking.canOpenURL(whatsappUrl)
+
+      if (supported) {
+        await Linking.openURL(whatsappUrl)
+      } else {
+        // If WhatsApp app is not installed, try WhatsApp Web
+        const webSupported = await Linking.canOpenURL(whatsappWebUrl)
+
+        if (webSupported) {
+          await Linking.openURL(whatsappWebUrl)
+        } else {
+          // If neither works, show options
+          Alert.alert(
+            "WhatsApp Not Available",
+            "WhatsApp is not installed on your device. Would you like to install it or contact us via email?",
+            [
+              {
+                text: "Install WhatsApp",
+                onPress: () => {
+                  const playStoreUrl =
+                    "https://play.google.com/store/apps/details?id=com.whatsapp"
+                  const appStoreUrl =
+                    "https://apps.apple.com/app/whatsapp-messenger/id310633997"
+
+                  // Try to open appropriate app store
+                  Linking.openURL(
+                    Platform.OS === "ios" ? appStoreUrl : playStoreUrl
+                  )
+                },
+              },
+              {
+                text: "Email Support",
+                onPress: () => {
+                  Linking.openURL(
+                    "mailto:support@koiny.app?subject=Help with Koiny App"
+                  )
+                },
+              },
+              {
+                text: "Cancel",
+                style: "cancel",
+              },
+            ]
+          )
+        }
+      }
+    } catch (error) {
+      console.error("Failed to open WhatsApp:", error)
+      Alert.alert(
+        "Error",
+        "Unable to open WhatsApp. Please contact us at support@koiny.app",
+        [
+          {
+            text: "Send Email",
+            onPress: () => {
+              Linking.openURL(
+                "mailto:support@koiny.app?subject=Help with Koiny App"
+              )
+            },
+          },
+          { text: "OK", style: "cancel" },
+        ]
+      )
     }
   }
 
@@ -81,7 +174,7 @@ export default function AboutScreen() {
           >
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>About SplitBudget</Text>
+          <Text style={styles.headerTitle}>About Koiny</Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -89,23 +182,23 @@ export default function AboutScreen() {
           {/* App Info */}
           <View style={styles.appInfoSection}>
             <View style={styles.appIcon}>
-              <Text style={styles.appIconText}>💰</Text>
+              <Text style={styles.appIconText}>🪙</Text>
             </View>
-            <Text style={styles.appName}>SplitBudget</Text>
+            <Text style={styles.appName}>Koiny</Text>
             <Text style={styles.appTagline}>
               Because adulting is hard enough already
             </Text>
             <Text style={styles.versionInfo}>
-              Version 1.0.0 (Build 2025.08.17)
+              Version 1.0.0 (Build 2025.09.13)
             </Text>
           </View>
 
           {/* Company Story */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>About SplitBudget 🚀</Text>
+            <Text style={styles.sectionTitle}>About Koiny 🚀</Text>
 
             <Text style={styles.companyStory}>
-              SplitBudget was born in 2025 from a simple but relatable problem:
+              Koiny was born in 2025 from a simple but relatable problem:
               juggling multiple apps just to figure out if you could afford that
               packet of Kurkure without going broke 🧡
             </Text>
@@ -141,9 +234,7 @@ export default function AboutScreen() {
 
           {/* Key Features */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              What SplitBudget Actually Does
-            </Text>
+            <Text style={styles.sectionTitle}>What Koiny Actually Does</Text>
             <View style={styles.featuresList}>
               {features.map((feature, index) => (
                 <View key={index} style={styles.featureItem}>
@@ -179,8 +270,8 @@ export default function AboutScreen() {
             <Text style={styles.storyText}>
               <Text style={styles.highlight}>The solution:</Text> Build
               something that doesn't make you want to throw your phone out the
-              window. Hence, SplitBudget was born in 2025 - powered by Maggie,
-              Kurkure crunches, and way too many late nights.
+              window. Hence, Koiny was born in 2025 - powered by Maggie, Kurkure
+              crunches, and way too many late nights.
             </Text>
           </View>
 
@@ -307,34 +398,30 @@ export default function AboutScreen() {
                 <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
               </TouchableOpacity>
 
+              {/* Modified Help & Support to open WhatsApp */}
               <TouchableOpacity
-                style={styles.legalLink}
-                onPress={() => router.push("/users/profile/feedback")}
+                style={[styles.legalLink, styles.whatsappLink]}
+                onPress={openWhatsAppSupport}
               >
-                <Ionicons
-                  name="help-circle-outline"
-                  size={18}
-                  color="#1CC29F"
-                />
-                <Text style={styles.legalLinkText}>Help & Support</Text>
-                <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+                <Text style={[styles.legalLinkText, styles.whatsappLinkText]}>
+                  Help & Support
+                </Text>
+                <Ionicons name="open-outline" size={16} color="#25D366" />
               </TouchableOpacity>
             </View>
           </View>
 
           {/* Thank You */}
           <View style={styles.thankYouSection}>
-            <Text style={styles.thankYouTitle}>
-              Thanks for Using SplitBudget! 🙏
-            </Text>
+            <Text style={styles.thankYouTitle}>Thanks for Using Koiny! 🙏</Text>
             <Text style={styles.thankYouText}>
               You're helping make financial management less chaotic for
               everyone. Together, we're building something that actually works
               for real people with real money problems! 🎉
             </Text>
             <Text style={styles.copyright}>
-              © 2025 SplitBudget. Made with ❤️, 🍜, 🧡 and a lot of
-              determination.
+              © 2025 Koiny. Made with ❤️, 🍜, 🧡 and a lot of determination.
             </Text>
           </View>
         </ScrollView>
@@ -434,83 +521,7 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 16,
   },
-  founderCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F0FDF4",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: "#1CC29F",
-  },
-  founderAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#1CC29F",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
   companyStory: {
-    fontSize: 15,
-    color: "#374151",
-    lineHeight: 24,
-    marginBottom: 12,
-  },
-  valuesList: {
-    gap: 16,
-  },
-  valueItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  valueEmoji: {
-    fontSize: 24,
-    marginRight: 16,
-    marginTop: 2,
-  },
-  valueContent: {
-    flex: 1,
-  },
-  valueTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  valueText: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 20,
-  },
-
-  founderInitials: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  founderInfo: {
-    flex: 1,
-  },
-  founderName: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111827",
-    marginBottom: 2,
-  },
-  founderTitle: {
-    fontSize: 14,
-    color: "#1CC29F",
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  founderYear: {
-    fontSize: 12,
-    color: "#6B7280",
-  },
-  founderStory: {
     fontSize: 15,
     color: "#374151",
     lineHeight: 24,
@@ -561,6 +572,32 @@ const styles = StyleSheet.create({
     color: "#374151",
     lineHeight: 24,
     marginBottom: 12,
+  },
+  valuesList: {
+    gap: 16,
+  },
+  valueItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  valueEmoji: {
+    fontSize: 24,
+    marginRight: 16,
+    marginTop: 2,
+  },
+  valueContent: {
+    flex: 1,
+  },
+  valueTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  valueText: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
   },
   funFactsList: {
     gap: 12,
@@ -622,6 +659,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#374151",
     marginLeft: 12,
+  },
+  // WhatsApp specific styles
+  whatsappLink: {
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#25D366",
+  },
+  whatsappLinkText: {
+    color: "#25D366",
+    fontWeight: "600",
   },
   thankYouSection: {
     backgroundColor: "#F0FDF4",

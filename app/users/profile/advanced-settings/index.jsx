@@ -152,7 +152,7 @@ export default function AdvancedSettingsScreen() {
             </Text>
 
             {/* Delete Account */}
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.card, styles.dangerCard]}
               onPress={handleDeleteAccount}
             >
@@ -170,7 +170,7 @@ export default function AdvancedSettingsScreen() {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#EF4444" />
               </View>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Help Section */}

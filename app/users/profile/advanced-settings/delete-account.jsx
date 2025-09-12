@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
+import { useStyles } from "../../../../src/context/StyleContext"
 
 import { useAuth } from "../../../../src/context/AuthContext"
 import { baseUrl } from "../../../../src/utility/constant"
@@ -28,6 +29,14 @@ export default function DeleteAccountScreen() {
   const [loading, setLoading] = useState(false)
   const [isConfirmationValid, setIsConfirmationValid] = useState(false)
   const { signOut } = useAuth()
+  const { setStatusBarStyle } = useStyles()
+
+  useEffect(() => {
+    setStatusBarStyle({
+      backgroundColor: "#EF4444",
+      barStyle: "light",
+    })
+  }, [])
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [

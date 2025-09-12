@@ -14,13 +14,13 @@ export default function TermsScreen() {
   const sections = [
     {
       title: "Acceptance of Terms",
-      content: `By downloading, installing, or using the SplitBudget app, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our app.
+      content: `By downloading, installing, or using the Koiny app, you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use our app.
 
-These terms constitute a legally binding agreement between you and SplitBudget.`,
+These terms constitute a legally binding agreement between you and Koiny.`,
     },
     {
       title: "Description of Service",
-      content: `SplitBudget is a personal finance and expense management application that allows users to:
+      content: `Koiny is a personal finance and expense management application that allows users to:
 
 • Track personal expenses and income
 • Manage multiple accounts and budgets
@@ -32,7 +32,7 @@ The service is provided "as is" and may be updated from time to time.`,
     },
     {
       title: "User Accounts and Registration",
-      content: `To use SplitBudget, you must:
+      content: `To use Koiny, you must:
 
 • Provide accurate and complete registration information
 • Maintain the confidentiality of your account credentials
@@ -69,7 +69,7 @@ Please review our Privacy Policy for detailed information about data handling.`,
     },
     {
       title: "Subscription and Payments",
-      content: `SplitBudget offers both free and premium features:
+      content: `Koiny offers both free and premium features:
 
 • Free features are available without payment
 • Premium features require a paid subscription
@@ -81,7 +81,7 @@ You can manage your subscription through your device's app store.`,
     },
     {
       title: "Limitation of Liability",
-      content: `SplitBudget is provided for personal financial tracking only. We:
+      content: `Koiny is provided for personal financial tracking only. We:
 
 • Are not a licensed financial advisor or institution
 • Do not provide financial, tax, or investment advice
@@ -135,10 +135,12 @@ We encourage you to review these terms periodically. If you disagree with change
         <ScrollView style={styles.content}>
           <View style={styles.introSection}>
             <Text style={styles.introTitle}>Terms of Service</Text>
-            <Text style={styles.introText}>Last updated: August 16, 2025</Text>
+            <Text style={styles.introText}>
+              Last updated: September 13, 2025
+            </Text>
             <Text style={styles.introDescription}>
-              Please read these Terms of Service carefully before using
-              SplitBudget. These terms govern your use of our app and services.
+              Please read these Terms of Service carefully before using Koiny.
+              These terms govern your use of our app and services.
             </Text>
           </View>
 
@@ -162,13 +164,11 @@ We encourage you to review these terms periodically. If you disagree with change
             <View style={styles.contactInfo}>
               <View style={styles.contactItem}>
                 <Ionicons name="mail-outline" size={18} color="#7C3AED" />
-                <Text style={styles.contactDetail}>legal@splitbudget.com</Text>
+                <Text style={styles.contactDetail}>legal@koiny.in</Text>
               </View>
               <View style={styles.contactItem}>
                 <Ionicons name="globe-outline" size={18} color="#7C3AED" />
-                <Text style={styles.contactDetail}>
-                  www.splitbudget.com/terms
-                </Text>
+                <Text style={styles.contactDetail}>www.koiny.in/terms</Text>
               </View>
             </View>
           </View>

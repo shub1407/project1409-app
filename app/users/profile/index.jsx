@@ -388,13 +388,13 @@ export default function ProfileScreen() {
 
   // Main Menu Options
   const mainOptions = [
-    {
-      icon: "star-outline",
-      title: "Premium Plans",
-      route: "/users/profile/premium",
-      color: "#FFB800",
-      badge: "Pro",
-    },
+    // {
+    //   icon: "star-outline",
+    //   title: "Premium Plans",
+    //   route: "/users/profile/premium",
+    //   color: "#FFB800",
+    //   badge: "Pro",
+    // },
     {
       icon: "apps-outline",
       title: "Categories",
@@ -611,7 +611,7 @@ export default function ProfileScreen() {
 
           {/* Version Info */}
           <View style={styles.versionContainer}>
-            <Text style={styles.versionText}>SplitBudget v1.0.0</Text>
+            <Text style={styles.versionText}>Koiny v1.0.0</Text>
             <Text style={styles.buildText}>Build 2025.09.12</Text>
           </View>
         </ScrollView>

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
 import DateTimePicker from "@react-native-community/datetimepicker"
-import { router, useLocalSearchParams } from "expo-router"
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
@@ -9,7 +9,6 @@ import {
   Platform,
   SafeAreaView,
   ScrollView,
-  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,10 +16,10 @@ import {
 } from "react-native"
 import { useAccountsContext } from "../../src/context/AccountContext"
 import { useCategoryContext } from "../../src/context/CategoryContext"
+import { useStyles } from "../../src/context/StyleContext"
 import { useTransaction } from "../../src/hooks/useTransaction"
 import { BackgroundSMSService } from "../../src/services/sms/BackgroundSMSService"
 import styles from "../../src/styles/add"
-
 export default function AddTransactionScreen() {
   const params = useLocalSearchParams()
   const { createTransaction, getTransactions, updateTransaction } =
@@ -30,7 +29,8 @@ export default function AddTransactionScreen() {
   const [smsTransaction, setSmsTransaction] = useState(null)
   const [isFromSMS, setIsFromSMS] = useState(false)
   const [parsedSMSData, setParsedSMSData] = useState(null)
-
+  const [transactionType, setTransactionType] = useState("expense") // expense, income, transfer
+  const { statusBarStyle, setStatusBarStyle } = useStyles()
   const [formData, setFormData] = useState({
     type: "expense",
     description: "",
@@ -298,6 +298,21 @@ export default function AddTransactionScreen() {
     ],
     []
   )
+  useEffect(() => {
+    setStatusBarStyle({
+      backgroundColor: getTypeColor(),
+
+      barStyle: "light",
+    })
+  }, [transactionType])
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle({
+        backgroundColor: getTypeColor(),
+        barStyle: "light",
+      })
+    }, [transactionType])
+  )
 
   // Bank Accounts
   const accountOptions = useMemo(
@@ -512,6 +527,9 @@ export default function AddTransactionScreen() {
       [key]: value,
       ...(key === "type" && { category: "", toAccount: "" }),
     }))
+    if (key === "type") {
+      setTransactionType(value)
+    }
   }, [])
 
   const formatAmount = useCallback(
@@ -535,7 +553,6 @@ export default function AddTransactionScreen() {
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor={getTypeColor()} />
       <SafeAreaView style={styles.container}>
         {/* Enhanced Header with SMS indicator */}
         <View style={[styles.header, { backgroundColor: getTypeColor() }]}>

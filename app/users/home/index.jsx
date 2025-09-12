@@ -6,7 +6,6 @@ import {
   Dimensions,
   RefreshControl,
   SafeAreaView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -18,8 +17,8 @@ import TransactionCard from "../../../src/components/TransactionCard"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useAuth } from "../../../src/context/AuthContext"
 import { useSMS } from "../../../src/context/SMSProvider"
+import { useStyles } from "../../../src/context/StyleContext"
 import { useTransaction } from "../../../src/hooks/useTransaction"
-
 const { width: screenWidth } = Dimensions.get("window")
 const HEADER_HEIGHT = 180 // Height of your header
 
@@ -46,7 +45,7 @@ export default function AccountsScreen() {
 
   // Animated value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current
-
+  const { setStatusBarStyle } = useStyles()
   useEffect(() => {
     loadTransactions()
     showPendingTransactionsFromSMS()
@@ -129,6 +128,7 @@ export default function AccountsScreen() {
     useCallback(() => {
       console.log("Screen is focused")
       loadTransactions()
+      setStatusBarStyle({ backgroundColor: "#1CC29F", barStyle: "light" })
 
       return () => {
         console.log("Screen is unfocused")
@@ -214,7 +214,7 @@ export default function AccountsScreen() {
 
   return (
     <>
-      <StatusBar barStyle="light-content" backgroundColor="#1CC29F" />
+      {/* <StatusBar barStyle="light-content" backgroundColor="#1CC29F" /> */}
       <SafeAreaView style={styles.container}>
         {/* Animated Header */}
         <Animated.View
@@ -229,7 +229,7 @@ export default function AccountsScreen() {
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <View style={styles.appBranding}>
-                <Text style={styles.appName}>SplitBudget</Text>
+                <Text style={styles.appName}>Koiny</Text>
                 <View style={styles.brandingDot} />
               </View>
               <Text style={styles.tagline}>Smart Finance Management</Text>

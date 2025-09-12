@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import feedbackService from "../../../../src/services/feedbackService"
+import feedbackService from "../../../../src/services/api/feedbackService"
 
 export default function FeedbackScreen() {
   const [feedbackType, setFeedbackType] = useState("bug")
@@ -69,17 +69,6 @@ export default function FeedbackScreen() {
     setLoading(true)
 
     try {
-      // Check if user is authenticated
-      const isAuth = await feedbackService.isAuthenticated()
-      if (!isAuth) {
-        Alert.alert(
-          "Authentication Required",
-          "Please log in to submit feedback",
-          [{ text: "OK", onPress: () => router.push("/auth/login") }]
-        )
-        return
-      }
-
       const apiData = {
         type: feedbackType,
         title: title.trim(),

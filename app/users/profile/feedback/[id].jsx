@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import feedbackService from "../../../../src/services/feedbackService"
+import feedbackService from "../../../../src/services/api/feedbackService"
 
 export default function FeedbackDetailsScreen() {
   const { id } = useLocalSearchParams()
