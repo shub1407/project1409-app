@@ -6,8 +6,8 @@ import {
 } from "@react-native-google-signin/google-signin"
 import * as SecureStore from "expo-secure-store"
 import { ENDPOINTS, STORAGE_KEYS } from "../../constants/api"
+import { Logger } from "../../utility/logger"
 import apiClient from "./apiClient"
-
 class AuthService {
   constructor() {
     this.initializeGoogleSignIn()
@@ -154,10 +154,10 @@ class AuthService {
         email,
         password,
       })
-      result = result.data
-      console.log("Result of login:: ", result.data)
+      Logger.debug("[authService] Login API result:", result)
+      console.log("Result of login:: ", result?.data)
       if (result.success) {
-        const { tokens, user } = result.data
+        const { tokens, user } = result.data.data
         const token = tokens.accessToken
         const refreshToken = tokens.refreshToken
 
@@ -184,16 +184,16 @@ class AuthService {
   async register(userData) {
     try {
       let result = await apiClient.post(ENDPOINTS.AUTH.REGISTER, userData)
-      result = result.data
+      Logger.debug("[authService] Register API result:", result?.data.data)
 
       if (result.success) {
-        const { token, user, refreshToken } = result.data
-        await this.storeAuthData(token, user, refreshToken)
+        const { tokens, user } = result.data.data
+        await this.storeAuthData(tokens.accessToken, user, tokens.refreshToken)
 
         return {
           success: true,
           user,
-          token,
+          tokens,
         }
       }
 

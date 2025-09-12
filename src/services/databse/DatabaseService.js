@@ -22,4 +22,7 @@ export class DatabaseService {
   get scheduledTransactions() {
     return this.repositoryFactory.getScheduledTransactionRepository()
   }
+  get settings() {
+    return this.repositoryFactory.getSettingRepository()
+  }
 }

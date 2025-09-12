@@ -598,4 +598,73 @@ export class ReportRepository extends BaseRepository {
       return Result.fail(error.message, "Failed to generate expense trends")
     }
   }
+  //get stats tos how to profile page
+  async getStats() {
+    try {
+      const totalIncomeQuery = `
+        SELECT
+          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income
+        FROM transactions
+        WHERE is_deleted = 0
+      `
+
+      const totalExpenseQuery = `
+        SELECT
+          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expense
+        FROM transactions
+        WHERE is_deleted = 0
+      `
+      const totalTransactionQuery = `
+        SELECT
+          COUNT(*) as total_transactions
+        FROM transactions
+        WHERE is_deleted = 0
+      `
+      const totalAccountsQuery = `
+        SELECT COUNT(*) as total_accounts,SUM(balance) as total_balance
+        FROM accounts
+        WHERE is_deleted = 0
+      `
+      const pendingSyncQuery = `
+        SELECT COUNT(*) as pending_sync_operations
+        FROM sync_operations
+        WHERE status = 'pending' OR status = 'failed' OR status = 'retrying'
+      `
+
+      const [
+        totalIncomeResult,
+        totalExpenseResult,
+        totalTransactionResult,
+        totalAccountsResult,
+        pendingSyncResult,
+      ] = await Promise.all([
+        this.db.getFirstAsync(totalIncomeQuery),
+        this.db.getFirstAsync(totalExpenseQuery),
+        this.db.getFirstAsync(totalTransactionQuery),
+        this.db.getFirstAsync(totalAccountsQuery),
+        this.db.getFirstAsync(pendingSyncQuery),
+      ])
+
+      const stats = {
+        totalIncome: Number(totalIncomeResult?.total_income || 0).toFixed(2),
+        totalExpense: Number(totalExpenseResult?.total_expense || 0).toFixed(2),
+        totalTransactions: totalTransactionResult?.total_transactions || 0,
+        totalAccounts: totalAccountsResult?.total_accounts || 0,
+        totalBalance: Number(totalAccountsResult?.total_balance || 0).toFixed(
+          2
+        ),
+        pendingSyncOperations: pendingSyncResult?.pending_sync_operations || 0,
+
+        balance: (
+          Number(totalIncomeResult?.total_income || 0) -
+          Number(totalExpenseResult?.total_expense || 0)
+        ).toFixed(2),
+      }
+
+      return Result.ok(stats, "User stats retrieved successfully")
+    } catch (error) {
+      Logger.error("ReportRepository.getStats error:", error)
+      return Result.fail(error.message, "Failed to retrieve user stats")
+    }
+  }
 }

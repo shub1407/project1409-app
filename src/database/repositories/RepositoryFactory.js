@@ -4,6 +4,7 @@ import { CategoryRepository } from "./CategoryRepository.js"
 import { ReportRepository } from "./ReportRepository.js"
 import { ScheduledTransactionExecutionRepository } from "./ScheduledTransactionExecutionRepository.js"
 import { ScheduledTransactionRepository } from "./ScheduledTransactionRepository.js"
+import { SettingRepository } from "./SettingRepository.js"
 import { TransactionRepository } from "./TransactionRepository.js"
 export class RepositoryFactory {
   constructor(db) {
@@ -51,5 +52,11 @@ export class RepositoryFactory {
         new ScheduledTransactionExecutionRepository(this.db)
     }
     return this._repositories.scheduledTransactionExecutions
+  }
+  getSettingRepository() {
+    if (!this._repositories.settings) {
+      this._repositories.settings = new SettingRepository(this.db)
+    }
+    return this._repositories.settings
   }
 }

@@ -122,6 +122,23 @@ export const useReports = () => {
     },
     [dbService]
   )
+  const getStats = useCallback(
+    async (startDate, endDate) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const result = await dbService.report.getStats({ startDate, endDate })
+        return result
+      } catch (err) {
+        setError(err.message)
+        Logger.error("Error generating stats:", err)
+        return { success: false, error: err.message }
+      } finally {
+        setLoading(false)
+      }
+    },
+    [dbService]
+  )
 
   return {
     loading,
@@ -131,6 +148,7 @@ export const useReports = () => {
     generateMonthlyReport,
     generateIncomeVsExpense,
     generateCashFlowAnalysis,
+    getStats,
     // Add other report methods as needed
   }
 }

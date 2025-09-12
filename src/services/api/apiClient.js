@@ -20,7 +20,24 @@ class ApiClient {
     this.retryCount = 0
     this.maxRetries = API_CONFIG.RETRY_ATTEMPTS
 
+    // Define public endpoints that don't need authentication
+    this.publicEndpoints = [
+      ENDPOINTS.AUTH.LOGIN,
+      ENDPOINTS.AUTH.REGISTER,
+      ENDPOINTS.AUTH.GOOGLE_LOGIN,
+      ENDPOINTS.AUTH.FORGOT_PASSWORD,
+      ENDPOINTS.AUTH.RESET_PASSWORD,
+      "/health",
+    ]
+
     this.setupInterceptors()
+  }
+
+  // Check if endpoint is public (doesn't need auth)
+  isPublicEndpoint(url) {
+    return this.publicEndpoints.some(
+      (endpoint) => url.includes(endpoint) || url.endsWith(endpoint)
+    )
   }
 
   setupInterceptors() {
@@ -33,10 +50,12 @@ class ApiClient {
           return Promise.reject(new Error("No internet connection"))
         }
 
-        // Add authentication token
-        const token = await SecureStore.getItemAsync(STORAGE_KEYS.USER_TOKEN)
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`
+        // Add authentication token only for protected endpoints
+        if (!this.isPublicEndpoint(config.url)) {
+          const token = await SecureStore.getItemAsync(STORAGE_KEYS.USER_TOKEN)
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`
+          }
         }
 
         // Add request timestamp for tracking
@@ -88,8 +107,12 @@ class ApiClient {
 
         const { status } = error.response
 
-        // Handle 401 Unauthorized
-        if (status === 401 && !originalRequest._retry) {
+        // Handle 401 Unauthorized - BUT NOT for auth endpoints
+        if (
+          status === 401 &&
+          !originalRequest._retry &&
+          !this.isPublicEndpoint(originalRequest.url)
+        ) {
           if (this.isRefreshing) {
             return this.addToFailedQueue(originalRequest)
           }
@@ -109,8 +132,9 @@ class ApiClient {
               refreshToken,
             })
 
-            const { token: newToken, refreshToken: newRefreshToken } =
-              response.data
+            const { tokens } = response.data.data
+            const { accessToken: newToken, refreshToken: newRefreshToken } =
+              tokens
 
             await Promise.all([
               SecureStore.setItemAsync(STORAGE_KEYS.USER_TOKEN, newToken),
@@ -145,6 +169,9 @@ class ApiClient {
         // Handle specific error codes
         const errorMap = {
           400: "Bad request. Please check your input.",
+          401: this.isPublicEndpoint(originalRequest.url)
+            ? "Invalid credentials"
+            : "Unauthorized access",
           403: "Access forbidden. You do not have permission.",
           404: "Resource not found.",
           409: "Conflict. Resource already exists.",
@@ -225,23 +252,65 @@ class ApiClient {
     }
   }
 
+  // Method specifically for public endpoints (no auth required)
+  async publicRequest(config) {
+    const originalHeaders = { ...config.headers }
+    // Ensure no Authorization header is added
+    if (config.headers) {
+      delete config.headers.Authorization
+    }
+
+    try {
+      const response = await this.client({
+        ...config,
+        headers: {
+          ...originalHeaders,
+          Authorization: undefined, // Explicitly remove auth header
+        },
+      })
+      return {
+        success: true,
+        data: response.data,
+        status: response.status,
+        headers: response.headers,
+      }
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+
   async get(url, config = {}) {
+    if (this.isPublicEndpoint(url)) {
+      return this.publicRequest({ method: "GET", url, ...config })
+    }
     return this.request({ method: "GET", url, ...config })
   }
 
   async post(url, data = {}, config = {}) {
+    if (this.isPublicEndpoint(url)) {
+      return this.publicRequest({ method: "POST", url, data, ...config })
+    }
     return this.request({ method: "POST", url, data, ...config })
   }
 
   async put(url, data = {}, config = {}) {
+    if (this.isPublicEndpoint(url)) {
+      return this.publicRequest({ method: "PUT", url, data, ...config })
+    }
     return this.request({ method: "PUT", url, data, ...config })
   }
 
   async patch(url, data = {}, config = {}) {
+    if (this.isPublicEndpoint(url)) {
+      return this.publicRequest({ method: "PATCH", url, data, ...config })
+    }
     return this.request({ method: "PATCH", url, data, ...config })
   }
 
   async delete(url, config = {}) {
+    if (this.isPublicEndpoint(url)) {
+      return this.publicRequest({ method: "DELETE", url, ...config })
+    }
     return this.request({ method: "DELETE", url, ...config })
   }
 
@@ -332,11 +401,15 @@ class ApiClient {
 
   // Clear authentication data
   async clearAuthData() {
-    await Promise.all([
-      SecureStore.deleteItemAsync(STORAGE_KEYS.USER_TOKEN),
-      SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN),
-      SecureStore.deleteItemAsync(STORAGE_KEYS.USER_DATA),
-    ])
+    try {
+      await Promise.all([
+        SecureStore.deleteItemAsync(STORAGE_KEYS.USER_TOKEN).catch(() => {}),
+        SecureStore.deleteItemAsync(STORAGE_KEYS.REFRESH_TOKEN).catch(() => {}),
+        SecureStore.deleteItemAsync(STORAGE_KEYS.USER_DATA).catch(() => {}),
+      ])
+    } catch (error) {
+      console.warn("Error clearing auth data:", error)
+    }
   }
 
   // Health check
