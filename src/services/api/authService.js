@@ -1,12 +1,153 @@
 // services/authService.js
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  statusCodes,
+} from "@react-native-google-signin/google-signin"
 import * as SecureStore from "expo-secure-store"
 import { ENDPOINTS, STORAGE_KEYS } from "../../constants/api"
 import apiClient from "./apiClient"
 
 class AuthService {
+  constructor() {
+    this.initializeGoogleSignIn()
+  }
+
+  /**
+   * Initialize Google Sign-In configuration
+   */
+  initializeGoogleSignIn() {
+    const webClientId =
+      "622393446179-mv5r7kksekdgbb3lt063kh0do5ebvfea.apps.googleusercontent.com"
+    console.log("Initializing Google Sign-In with Web Client ID:", webClientId)
+    // Replace with your actual Web Client ID
+    GoogleSignin.configure({
+      webClientId: webClientId,
+      offlineAccess: true,
+      hostedDomain: "", // Optional
+      forceCodeForRefreshToken: true,
+      profileImageSize: 120,
+    })
+  }
+  /**
+   * Sign in with Google
+   */
+  async signInWithGoogle() {
+    try {
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true })
+      const userInfo = await GoogleSignin.signIn()
+      if (isSuccessResponse(userInfo)) {
+        console.log("Google sign-in user info:", userInfo)
+
+        // Send Google token to your backend for verification
+        let result = await apiClient.post(ENDPOINTS.AUTH.GOOGLE_LOGIN, {
+          idToken: userInfo.data.idToken,
+          accessToken: userInfo.data.serverAuthCode,
+          user: userInfo.data.user,
+        })
+
+        result = result.data
+
+        if (result?.success) {
+          const { tokens, user } = result.data
+          const token = tokens.accessToken
+          const refreshToken = tokens.refreshToken
+
+          // Store authentication data
+          await this.storeAuthData(token, user, refreshToken)
+
+          return {
+            success: true,
+            user,
+            token,
+          }
+        }
+
+        return result
+      } else {
+        // sign in was cancelled by user
+      }
+    } catch (error) {
+      console.error("Google Sign-In Error Details:", error)
+
+      // Enhanced error handling
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        return {
+          success: false,
+          error: "Sign in was cancelled",
+          type: "SIGN_IN_CANCELLED",
+        }
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        return {
+          success: false,
+          error: "Sign in is already in progress",
+          type: "IN_PROGRESS",
+        }
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        return {
+          success: false,
+          error: "Google Play Services not available",
+          type: "PLAY_SERVICES_NOT_AVAILABLE",
+        }
+      } else if (error.code === statusCodes.DEVELOPER_ERROR) {
+        return {
+          success: false,
+          error: "Configuration error - check SHA-1 fingerprint and Client ID",
+          type: "DEVELOPER_ERROR",
+        }
+      }
+
+      return {
+        success: false,
+        error: error.message || "Google sign in failed",
+        type: "NETWORK_ERROR",
+      }
+    }
+  }
+
+  /**
+   * Check if user is signed in with Google
+   */
+  async isGoogleSignedIn() {
+    try {
+      const hasSignedInBefore = await GoogleSignin.hasPreviousSignIn()
+      if (!hasSignedInBefore) return false
+
+      const userInfo = await GoogleSignin.getCurrentUser()
+      return !!userInfo
+    } catch (error) {
+      console.error("Error checking Google sign-in status:", error)
+      return false
+    }
+  }
+
+  /**
+   * Get current Google user info
+   */
+  async getCurrentGoogleUser() {
+    try {
+      return await GoogleSignin.getCurrentUser()
+    } catch (error) {
+      console.error("Error getting current Google user:", error)
+      return null
+    }
+  }
+
+  /**
+   * Sign out from Google
+   */
+  async signOutFromGoogle() {
+    try {
+      await GoogleSignin.signOut()
+    } catch (error) {
+      console.error("Error signing out from Google:", error)
+    }
+  }
+
   /**
    * Login user with email and password
    */
+
   async login(email, password) {
     try {
       let result = await apiClient.post(ENDPOINTS.AUTH.LOGIN, {
@@ -70,6 +211,12 @@ class AuthService {
     try {
       // Attempt to call logout endpoint (optional)
       await apiClient.post(ENDPOINTS.AUTH.LOGOUT)
+
+      // Sign out from Google if user was signed in
+      const isGoogleSignedIn = await this.isGoogleSignedIn()
+      if (isGoogleSignedIn) {
+        await this.signOutFromGoogle()
+      }
     } catch (error) {
       console.warn("Logout API call failed:", error)
     } finally {

@@ -20,11 +20,12 @@ import { Logger } from "../../src/utility/logger"
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 export default function LoginScreen() {
-  const { signIn } = useAuth()
+  const { signIn, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
 
@@ -53,9 +54,26 @@ export default function LoginScreen() {
     setLoading(false)
   }
 
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true)
+    const result = await signInWithGoogle()
+
+    if (result.success) {
+      router.replace("/users/home")
+    } else {
+      // Handle specific Google Sign-In errors
+      if (result.type === "SIGN_IN_CANCELLED") {
+        // Don't show error for cancelled sign-in
+        console.log("Google sign-in was cancelled")
+      } else {
+        Alert.alert("Error", result.error || "Google sign in failed")
+      }
+    }
+    setGoogleLoading(false)
+  }
+
   return (
     <>
-      {/* Updated StatusBar with green background */}
       <StatusBar
         barStyle="light-content"
         backgroundColor="#1CC29F"
@@ -73,7 +91,6 @@ export default function LoginScreen() {
             bounces={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Optional: Add a subtle green header bar */}
             <View style={styles.statusBarExtension} />
 
             <View style={styles.content}>
@@ -114,11 +131,12 @@ export default function LoginScreen() {
                       value={email}
                       onChangeText={setEmail}
                       onFocus={() => setEmailFocused(true)}
+                      onBlur={() => setEmailFocused(false)}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       autoComplete="email"
                       autoCorrect={false}
-                      editable={true}
+                      editable={!loading && !googleLoading}
                       selectTextOnFocus={true}
                     />
                   </View>
@@ -146,10 +164,11 @@ export default function LoginScreen() {
                       value={password}
                       onChangeText={setPassword}
                       onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
                       secureTextEntry={!showPassword}
                       autoComplete="password"
                       autoCorrect={false}
-                      editable={true}
+                      editable={!loading && !googleLoading}
                       selectTextOnFocus={true}
                     />
                     <TouchableOpacity
@@ -180,10 +199,10 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   style={[
                     styles.loginButton,
-                    loading && styles.loginButtonDisabled,
+                    (loading || googleLoading) && styles.loginButtonDisabled,
                   ]}
                   onPress={handleLogin}
-                  disabled={loading}
+                  disabled={loading || googleLoading}
                   activeOpacity={0.8}
                 >
                   {loading ? (
@@ -211,12 +230,32 @@ export default function LoginScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={styles.googleButton}
+                  style={[
+                    styles.googleButton,
+                    (loading || googleLoading) && styles.googleButtonDisabled,
+                  ]}
                   activeOpacity={0.7}
-                  disabled={loading}
+                  disabled={loading || googleLoading}
+                  onPress={handleGoogleSignIn}
                 >
-                  <Ionicons name="logo-google" size={20} color="#4285F4" />
-                  <Text style={styles.googleButtonText}>Google</Text>
+                  {googleLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <Ionicons
+                        name="refresh"
+                        size={20}
+                        color="#4285F4"
+                        style={styles.spinner}
+                      />
+                      <Text style={styles.googleButtonText}>Connecting...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Ionicons name="logo-google" size={20} color="#4285F4" />
+                      <Text style={styles.googleButtonText}>
+                        Continue with Google
+                      </Text>
+                    </>
+                  )}
                 </TouchableOpacity>
 
                 <View style={styles.signupContainer}>
@@ -323,6 +362,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     height: 60,
     paddingHorizontal: 16,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  spinner: {
+    marginRight: 8,
   },
   inputWrapperFocused: {
     borderColor: "#1CC29F",

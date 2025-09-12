@@ -69,6 +69,28 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(false)
     }
   }, [])
+  const signInWithGoogle = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      console.log("[AuthContext] Calling Google sign in")
+      const result = await authService.signInWithGoogle()
+      console.log("Google sign in result:: ", result)
+
+      if (result.success) {
+        setUser(result.user)
+      }
+
+      return result
+    } catch (error) {
+      console.error("Google sign in error:", error)
+      return {
+        success: false,
+        error: "An unexpected error occurred during Google sign in",
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   /**
    * Sign up new user
@@ -207,6 +229,7 @@ export const AuthProvider = ({ children }) => {
 
     // Actions
     signIn,
+    signInWithGoogle,
     signUp,
     signOut,
     updateProfile,
