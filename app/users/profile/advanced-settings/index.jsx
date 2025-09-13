@@ -122,7 +122,13 @@ export default function AdvancedSettingsScreen() {
             </View>
 
             {/* Import Data */}
-            <TouchableOpacity style={styles.card} onPress={handleDataImport}>
+            <TouchableOpacity
+              style={styles.card}
+              onPress={handleDataImport}
+              onLongPress={() => {
+                router.push("/users/profile/advanced-settings/debug-db")
+              }}
+            >
               <View style={styles.cardHeader}>
                 <View style={styles.iconContainer}>
                   <Ionicons

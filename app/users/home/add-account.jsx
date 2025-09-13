@@ -298,15 +298,17 @@ export default function AddAccountScreen() {
       }
       const result = await createAccount(accountData)
       if (result?.success) {
-        Alert.alert("Success", "Account created successfully!", [
-          {
-            text: "OK",
-            onPress: () => {
-              resetForm()
-              router.replace("/users/home")
-            },
-          },
-        ])
+        resetForm()
+        router.replace("/users/home")
+        // Alert.alert("Success", "Account created successfully!", [
+        //   {
+        //     text: "OK",
+        //     onPress: () => {
+        //       resetForm()
+        //       router.replace("/users/home")
+        //     },
+        //   },
+        // ])
         //reset form
       } else {
         Alert.alert("Error", result?.error || "Unknown error")

@@ -313,13 +313,6 @@ export default function AccountsScreen() {
             loading={transactionsLoading}
             onViewAll={handleViewAllTransactions}
           />
-
-          <TouchableOpacity
-            style={styles.recordsButton}
-            onPress={handleDebugDb}
-          >
-            <Text style={styles.recordsButtonText}>Debug DB</Text>
-          </TouchableOpacity>
         </Animated.ScrollView>
 
         {/* Modern SMS Transaction Modal */}

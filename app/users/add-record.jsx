@@ -444,27 +444,29 @@ export default function AddTransactionScreen() {
       }
 
       await refreshAccounts()
-      resetForm()
 
-      Alert.alert(
-        "Success! 🎉",
-        `${formData.type.charAt(0).toUpperCase() + formData.type.slice(1)} ${
-          isFromSMS ? "from SMS " : ""
-        }added successfully!`,
-        [
-          {
-            text: "Add Another",
-            onPress: () => {
-              // Stay on screen for another transaction
-              resetForm()
-            },
-          },
-          {
-            text: "Done",
-            onPress: () => router.back(),
-          },
-        ]
-      )
+      resetForm()
+      router.replace("/users/home")
+
+      // Alert.alert(
+      //   "Success! 🎉",
+      //   `${formData.type.charAt(0).toUpperCase() + formData.type.slice(1)} ${
+      //     isFromSMS ? "from SMS " : ""
+      //   }added successfully!`,
+      //   [
+      //     {
+      //       text: "Add Another",
+      //       onPress: () => {
+      //         // Stay on screen for another transaction
+      //         resetForm()
+      //       },
+      //     },
+      //     {
+      //       text: "Done",
+      //       onPress: () => router.back(),
+      //     },
+      //   ]
+      // )
     } catch (error) {
       console.error("Transaction creation error:", error)
       Alert.alert("Error", "Failed to add transaction. Please try again.")

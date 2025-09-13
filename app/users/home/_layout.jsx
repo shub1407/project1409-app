@@ -23,6 +23,10 @@ export default function HomeLayout() {
           tabBarStyle: { display: "none" },
         }}
       />
+      <Stack.Screen
+        name="debug-db"
+        options={{ title: "Debug Database", tabBarStyle: { display: "none" } }}
+      />
     </Stack>
   )
 }

@@ -12,8 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { useDatabase } from "../../../src/database/providers/DatabaseProvider"
-import { useSplitBudgetSync } from "../../../src/hooks/useSplitBudgetSync"
+import { useDatabase } from "../../../../src/database/providers/DatabaseProvider"
+import { useSplitBudgetSync } from "../../../../src/hooks/useSplitBudgetSync"
 const DebugDB = () => {
   const { db } = useDatabase()
   const [sqlQuery, setSqlQuery] = useState("")
