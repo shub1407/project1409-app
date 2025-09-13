@@ -244,7 +244,7 @@ private fun showTransactionNotification(context: Context, amount: String, type: 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("💳 Transaction Detected!")
-            .setContentText("₹$amount $type - Tap to add to SplitBudget")
+            .setContentText("₹$amount $type - Tap to add to Koiny")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setAutoCancel(true)

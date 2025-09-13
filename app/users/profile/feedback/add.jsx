@@ -135,7 +135,7 @@ export default function FeedbackScreen() {
           <View style={styles.introSection}>
             <Text style={styles.introTitle}>We'd love to hear from you!</Text>
             <Text style={styles.introText}>
-              Help us improve SplitBudget by reporting bugs or suggesting new
+              Help us improve Koiny by reporting bugs or suggesting new
               features.
             </Text>
           </View>

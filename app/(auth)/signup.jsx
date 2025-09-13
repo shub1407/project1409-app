@@ -285,7 +285,7 @@ export default function SignupScreen() {
                 </View>
                 <Text style={styles.title}>Create Account</Text>
                 <Text style={styles.subtitle}>
-                  Join SplitBudget and start managing your finances
+                  Join Koiny and start managing your finances
                 </Text>
               </View>
 
