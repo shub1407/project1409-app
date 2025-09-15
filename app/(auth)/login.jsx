@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import {
   Animated,
   Dimensions,
+  Image,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -218,7 +219,10 @@ export default function LoginScreen() {
                 <View style={styles.logoContainer}>
                   <View style={styles.logo}>
                     <View style={styles.logoInner}>
-                      <Ionicons name="wallet" size={28} color="#FFFFFF" />
+                      <Image
+                        source={require("../../assets/images/icon.png")}
+                        style={styles.logoImage}
+                      />
                     </View>
                   </View>
                 </View>
@@ -533,14 +537,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  logoInner: {
-    width: 48,
-    height: 48,
-    backgroundColor: "#0D9488",
+  logoImage: {
+    width: 50,
+    height: 50,
+    resizeMode: "contain",
     borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
   },
+  // logoInner: {
+  //   width: 48,
+  //   height: 48,
+  //   backgroundColor: "#0D9488",
+  //   borderRadius: 12,
+  //   justifyContent: "center",
+  //   alignItems: "center",
+  // },
   title: {
     fontSize: 28,
     fontWeight: "800",
