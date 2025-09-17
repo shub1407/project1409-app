@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons"
-import { useFocusEffect, useRouter } from "expo-router"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter } from "expo-router"
+import { useRef, useState } from "react"
 import {
   Alert,
   Animated,
@@ -14,7 +14,6 @@ import {
   View,
 } from "react-native"
 import { GestureHandlerRootView, Swipeable } from "react-native-gesture-handler"
-import { BackgroundSMSService } from "../../../src/services/sms/BackgroundSMSService"
 
 export default function PendingTransactionsScreen() {
   const router = useRouter()
@@ -22,28 +21,9 @@ export default function PendingTransactionsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const swipeableRefs = useRef({})
 
-  useEffect(() => {
-    loadPendingTransactions()
-  }, [])
-  useFocusEffect(
-    // Refresh the list when screen is focused
-    useCallback(() => {
-      loadPendingTransactions()
-    }, [])
-  )
-
-  const loadPendingTransactions = async () => {
-    try {
-      const pending = await BackgroundSMSService.checkPendingTransactions()
-      setPendingTransactions(pending)
-    } catch (error) {
-      console.error("Error loading pending transactions:", error)
-    }
-  }
-
   const onRefresh = async () => {
     setRefreshing(true)
-    await loadPendingTransactions()
+
     setRefreshing(false)
   }
 
@@ -201,7 +181,7 @@ export default function PendingTransactionsScreen() {
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={styles.headerTitle}>Pending Transactions</Text>
+            <Text style={styles.headerTitle}>Notifications</Text>
             {pendingTransactions.length > 0 && (
               <Text style={styles.headerSubtitle}>
                 {pendingTransactions.length} SMS transaction
@@ -228,9 +208,9 @@ export default function PendingTransactionsScreen() {
             <View style={styles.emptyIconContainer}>
               <Ionicons name="mail-open-outline" size={64} color="#DDD" />
             </View>
-            <Text style={styles.emptyTitle}>No Pending Transactions</Text>
+            <Text style={styles.emptyTitle}>No Notifications</Text>
             <Text style={styles.emptySubtitle}>
-              SMS transactions will appear here automatically when detected
+              Notifications will appear here.
             </Text>
             <TouchableOpacity
               style={styles.refreshEmptyButton}
@@ -238,7 +218,7 @@ export default function PendingTransactionsScreen() {
             >
               <Ionicons name="refresh" size={20} color="#e0ecf8ff" />
               <Text style={styles.refreshEmptyButtonText}>
-                Check for new messages
+                Check for new notifications
               </Text>
             </TouchableOpacity>
           </View>

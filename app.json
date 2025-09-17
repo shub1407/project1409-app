@@ -14,10 +14,12 @@
     },
     "android": {
       "package": "com.koiny.app",
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#1cc29f"
       },
+      "permissions": ["INTERNET", "VIBRATE"],
       "edgeToEdgeEnabled": true
     },
     "web": {
@@ -49,9 +51,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "aa54e944-f07c-4dc4-8c3b-9dfa0d036498"
+        "projectId": "9118a551-f45d-4ec9-a57f-e3869f43708e"
       }
     },
-    "owner": "sks.bholi2"
+    "owner": "sks.bholi"
   }
 }

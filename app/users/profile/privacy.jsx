@@ -11,78 +11,93 @@ import {
 } from "react-native"
 
 export default function PrivacyPolicyScreen() {
+  const currentDate = "September 16, 2025"
+
   const sections = [
     {
       title: "Information We Collect",
-      content: `We collect information you provide directly to us, such as when you create an account, add transactions, or contact us for support. This may include:
+      content: `We collect the following types of information when you use Koiny:
 
-• Personal information (name, email, phone number)
-• Financial data (account balances, transactions, categories)
-• Usage data (app interactions, preferences)
-• Device information (device type, operating system)`,
+• Personal Information: Email address, name, and authentication data when you create an account or sign in with Google
+• Financial Data: Transaction records, account balances, expense categories, and payment information you manually enter
+• Device Information: Device type, operating system version, and app performance data
+• Usage Data: How you interact with the app, features used, and app preferences
+• Local Storage Data: All financial data is stored locally on your device using SQLite database for offline functionality`,
     },
     {
       title: "How We Use Your Information",
-      content: `We use the information we collect to:
+      content: `We use your information to:
 
-• Provide and maintain our services
-• Process transactions and maintain account balances
-• Send you notifications and updates
-• Improve our app and develop new features
-• Provide customer support
-• Comply with legal obligations`,
+• Provide and maintain our expense tracking services
+• Authenticate your account and enable secure access
+• Process and store your financial transactions locally
+• Sync your data across your devices (when signed in)
+• Improve app functionality and user experience
+• Provide customer support and respond to inquiries
+• Send important notifications about your account or app updates
+• Ensure data security and prevent fraudulent activity`,
     },
     {
-      title: "Information Sharing",
-      content: `We do not sell, trade, or rent your personal information to third parties. We may share your information only in the following circumstances:
+      title: "Data Storage and Security",
+      content: `We implement comprehensive security measures:
 
-• With your explicit consent
-• To comply with legal obligations
-• To protect our rights and prevent fraud
-• With service providers who help us operate our app`,
+• Local Storage: Your expense data is stored locally on your device using encrypted SQLite database
+• Cloud Storage: Only your account information (email, authentication tokens) is stored on our secure servers
+• Encryption: All data transmission uses HTTPS/TLS encryption
+• Password Security: Passwords are hashed using industry-standard bcrypt
+• Access Control: Authentication tokens are stored securely using device keychain/keystore
+• No Third-Party Access: We never sell or share your personal financial data with third parties`,
     },
     {
-      title: "Data Security",
-      content: `We implement appropriate security measures to protect your information:
+      title: "Data Retention and Deletion",
+      content: `Our data retention practices:
 
-• Data encryption in transit and at rest
-• Regular security assessments
-• Access controls and authentication
-• Secure data storage practices
-
-However, no method of transmission over the internet is 100% secure.`,
+• Account Data: Stored on our servers until you delete your account
+• Local Data: Remains on your device until you uninstall the app or clear app data
+• Automatic Deletion: Account data is automatically deleted within 90 days of account deletion request
+• User Control: You can delete your account and request data deletion at any time through app settings
+• Backup Data: Any backup data is also deleted within the same timeframe`,
     },
     {
-      title: "Data Retention",
-      content: `We retain your personal information for as long as necessary to:
+      title: "Third-Party Services",
+      content: `We use the following third-party services:
 
-• Provide our services
-• Comply with legal obligations
-• Resolve disputes
-• Enforce our agreements
-
-You can request deletion of your account and data at any time through the app settings.`,
+• Google Sign-In: For authentication (subject to Google's privacy policy)
+• Firebase/Cloud Services: For account authentication and app functionality
+• Analytics Services: For app performance monitoring (anonymized data only)
+• No Data Sharing: We do not share your personal financial data with any third-party services
+• SDK Compliance: All third-party SDKs are evaluated for privacy compliance`,
     },
     {
-      title: "Your Rights",
-      content: `You have the right to:
+      title: "Your Rights and Choices",
+      content: `You have the following rights:
 
-• Access your personal information
-• Correct inaccurate information
-• Delete your account and data
-• Export your data
-• Withdraw consent
-• File complaints with data protection authorities`,
+• Access: View and export your personal data
+• Correction: Update or correct inaccurate information
+• Deletion: Request deletion of your account and associated data
+• Data Portability: Export your data in a standard format
+• Withdraw Consent: Revoke permissions for data processing
+• Account Control: Manage your account settings and preferences
+• Contact Us: Submit privacy-related questions or requests`,
+    },
+    {
+      title: "Children's Privacy",
+      content: `Koiny is not intended for children under 13. We do not knowingly collect personal information from children under 13. If we discover that we have collected information from a child under 13, we will delete it immediately.`,
+    },
+    {
+      title: "International Data Transfers",
+      content: `Your data may be processed and stored in countries outside your residence. We ensure appropriate safeguards are in place for international data transfers in compliance with applicable privacy laws.`,
     },
     {
       title: "Changes to This Policy",
-      content: `We may update this privacy policy from time to time. We will notify you of any material changes by:
+      content: `We may update this privacy policy periodically. We will notify you of material changes by:
 
-• Posting the updated policy in the app
-• Sending an email notification
-• Displaying a prominent notice
+• Posting updates in the app
+• Sending email notifications to registered users  
+• Displaying prominent notices in the app
+• Providing at least 30 days notice for significant changes
 
-Your continued use of the app after changes constitutes acceptance of the updated policy.`,
+Your continued use after changes indicates acceptance of the updated policy.`,
     },
   ]
 
@@ -103,13 +118,15 @@ Your continued use of the app after changes constitutes acceptance of the update
 
         <ScrollView style={styles.content}>
           <View style={styles.introSection}>
-            <Text style={styles.introTitle}>Your Privacy Matters</Text>
-            <Text style={styles.introText}>
-              Last updated: September 13, 2025
-            </Text>
+            <View style={styles.iconContainer}>
+              <Ionicons name="shield-checkmark" size={32} color="#1CC29F" />
+            </View>
+            <Text style={styles.introTitle}>Privacy Policy</Text>
+            <Text style={styles.introText}>Effective Date: {currentDate}</Text>
             <Text style={styles.introDescription}>
-              This privacy policy explains how Koiny collects, uses, and
-              protects your personal information when you use our app.
+              This privacy policy describes how Koiny ("we", "our", or "us")
+              collects, uses, and protects your information when you use our
+              personal expense management application.
             </Text>
           </View>
 
@@ -123,8 +140,8 @@ Your continued use of the app after changes constitutes acceptance of the update
           <View style={styles.contactSection}>
             <Text style={styles.contactTitle}>Contact Us</Text>
             <Text style={styles.contactText}>
-              If you have any questions about this privacy policy or our data
-              practices, please contact us:
+              For privacy-related questions or to exercise your rights, contact
+              us:
             </Text>
             <View style={styles.contactInfo}>
               <View style={styles.contactItem}>
@@ -144,6 +161,8 @@ Your continued use of the app after changes constitutes acceptance of the update
     </>
   )
 }
+
+// ... (same styles as before)
 
 const styles = StyleSheet.create({
   container: {
@@ -189,22 +208,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    backgroundColor: "rgba(28, 194, 159, 0.1)",
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
   introTitle: {
     fontSize: 24,
     fontWeight: "800",
     color: "#111827",
     marginBottom: 8,
+    textAlign: "center",
   },
   introText: {
     fontSize: 14,
     color: "#6B7280",
     marginBottom: 12,
+    textAlign: "center",
   },
   introDescription: {
     fontSize: 16,
     color: "#374151",
     lineHeight: 24,
+    textAlign: "center",
   },
   section: {
     backgroundColor: "#FFFFFF",

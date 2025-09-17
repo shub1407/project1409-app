@@ -16,17 +16,6 @@ export default function HomeLayout() {
         name="notifications"
         options={{ title: "Notifications", tabBarStyle: { display: "none" } }}
       />
-      <Stack.Screen
-        name="add-txn-msg"
-        options={{
-          title: "Add Transaction from SMS",
-          tabBarStyle: { display: "none" },
-        }}
-      />
-      <Stack.Screen
-        name="debug-db"
-        options={{ title: "Debug Database", tabBarStyle: { display: "none" } }}
-      />
     </Stack>
   )
 }

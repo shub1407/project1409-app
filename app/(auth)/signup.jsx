@@ -630,6 +630,7 @@ export default function SignupScreen() {
                 </View>
 
                 {/* Terms & Conditions */}
+                {/* Terms & Conditions - Fixed styling */}
                 <TouchableOpacity
                   style={styles.termsContainer}
                   onPress={() => {
@@ -649,16 +650,29 @@ export default function SignupScreen() {
                       <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                     )}
                   </View>
-                  <Text
-                    style={[
-                      styles.termsText,
-                      termsError && styles.termsTextError,
-                    ]}
-                  >
-                    I agree to the{" "}
-                    <Text style={styles.termsLink}>Terms of Service</Text> and{" "}
-                    <Text style={styles.termsLink}>Privacy Policy</Text>
-                  </Text>
+                  <View style={styles.termsTextContainer}>
+                    <Text
+                      style={[
+                        styles.termsText,
+                        termsError && styles.termsTextError,
+                      ]}
+                    >
+                      I agree to the{" "}
+                      <Text
+                        style={styles.termsLink}
+                        onPress={() => router.push("/(auth)/terms")}
+                      >
+                        Terms of Service
+                      </Text>
+                      <Text> and </Text>
+                      <Text
+                        style={styles.termsLink}
+                        onPress={() => router.push("/(auth)/privacy")}
+                      >
+                        Privacy Policy
+                      </Text>
+                    </Text>
+                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -857,6 +871,48 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+  },
+  termsContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 24,
+    paddingHorizontal: 4,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    borderRadius: 4,
+    marginRight: 10,
+    marginTop: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  checkboxChecked: {
+    backgroundColor: "#0D9488",
+    borderColor: "#0D9488",
+  },
+  checkboxError: {
+    borderColor: "#DC2626",
+  },
+  termsTextContainer: {
+    flex: 1,
+  },
+  termsText: {
+    fontSize: 13,
+    color: "#64748B",
+    lineHeight: 18,
+    flexWrap: "wrap",
+  },
+  termsTextError: {
+    color: "#DC2626",
+  },
+  termsLink: {
+    color: "#0D9488",
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
   errorIconContainer: {
     width: 28,

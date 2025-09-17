@@ -18,7 +18,7 @@ import { useAccountsContext } from "../../src/context/AccountContext"
 import { useCategoryContext } from "../../src/context/CategoryContext"
 import { useStyles } from "../../src/context/StyleContext"
 import { useTransaction } from "../../src/hooks/useTransaction"
-import { BackgroundSMSService } from "../../src/services/sms/BackgroundSMSService"
+
 import styles from "../../src/styles/add"
 export default function AddTransactionScreen() {
   const params = useLocalSearchParams()
@@ -439,9 +439,6 @@ export default function AddTransactionScreen() {
       const result = await createTransaction(transactionData)
 
       // Clear from pending SMS transactions if this was from SMS
-      if (isFromSMS && smsTransaction?.key) {
-        await BackgroundSMSService.clearTransaction(smsTransaction.key)
-      }
 
       await refreshAccounts()
 

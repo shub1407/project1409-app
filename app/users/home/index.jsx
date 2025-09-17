@@ -12,11 +12,10 @@ import {
   View,
 } from "react-native"
 import ListOfAccounts from "../../../src/components/ListOfAccounts"
-import SMSTransactionModal from "../../../src/components/SMSTransactionModal"
 import TransactionCard from "../../../src/components/TransactionCard"
 import { useAccountsContext } from "../../../src/context/AccountContext"
 import { useAuth } from "../../../src/context/AuthContext"
-import { useSMS } from "../../../src/context/SMSProvider"
+
 import { useStyles } from "../../../src/context/StyleContext"
 import { useTransaction } from "../../../src/hooks/useTransaction"
 const { width: screenWidth } = Dimensions.get("window")
@@ -36,19 +35,12 @@ export default function AccountsScreen() {
   const { user } = useAuth()
   const { accounts, refreshAccounts, loading } = useAccountsContext()
   const { getTransactions } = useTransaction()
-  const {
-    pendingTransactions,
-    checkPendingTransactions,
-    clearTransactionByKey,
-    clearAllTransactions,
-  } = useSMS()
 
   // Animated value for scroll position
   const scrollY = useRef(new Animated.Value(0)).current
   const { setStatusBarStyle } = useStyles()
   useEffect(() => {
     loadTransactions()
-    showPendingTransactionsFromSMS()
   }, [])
 
   // useFocusEffect(
@@ -57,72 +49,6 @@ export default function AccountsScreen() {
   //     showPendingTransactionsFromSMS()
   //   }, [])
   // )
-
-  const showPendingTransactionsFromSMS = async () => {
-    setPendingCount(pendingTransactions.length)
-    console.log("[SMS] Pending Transactions:", pendingTransactions)
-
-    // Show modern modal for latest transaction
-    if (pendingTransactions.length > 0) {
-      const latest = pendingTransactions[0]
-      console.log(
-        "[SMS] Showing modern modal for latest pending transaction:",
-        latest
-      )
-
-      setCurrentSMSTransaction(latest)
-      setShowSMSModal(true)
-    }
-  }
-
-  // Modern Modal Handlers
-  const handleSMSModalDismiss = () => {
-    setShowSMSModal(false)
-    setCurrentSMSIndex(0)
-  }
-  const handleNextSMSTransaction = () => {
-    if (currentSMSIndex < pendingTransactions.length - 1) {
-      setCurrentSMSIndex(currentSMSIndex + 1)
-    }
-  }
-
-  const handlePreviousSMSTransaction = () => {
-    if (currentSMSIndex > 0) {
-      setCurrentSMSIndex(currentSMSIndex - 1)
-    }
-  }
-
-  const handleSkipCurrentSMS = async () => {
-    try {
-      // Remove current transaction from pending
-      const currentTransaction = pendingTransactions[currentSMSIndex]
-      await clearTransactionByKey(currentTransaction.key)
-
-      // Move to next or close if no more
-      if (currentSMSIndex < pendingTransactions.length - 1) {
-        // Will automatically show next due to updated pending list
-        checkPendingTransactions()
-      } else {
-        setShowSMSModal(false)
-        setCurrentSMSIndex(0)
-      }
-    } catch (error) {
-      console.error("Error skipping SMS transaction:", error)
-    }
-  }
-
-  const handleViewAllSMSTransactions = () => {
-    setShowSMSModal(false)
-    router.push("/users/home/notifications")
-  }
-
-  const handleAddNowTransaction = (transaction) => {
-    setShowSMSModal(false)
-    router.push({
-      pathname: "/users/add-record",
-      params: { transaction: JSON.stringify(transaction) },
-    })
-  }
 
   useFocusEffect(
     useCallback(() => {
@@ -170,11 +96,6 @@ export default function AccountsScreen() {
 
   const handleAddAccount = () => {
     router.push("/users/home/add-account")
-  }
-
-  const handleDebugDb = () => {
-    console.log("Debug DB pressed")
-    router.push("/users/home/debug-db")
   }
 
   const handleSettingsPress = () => {
@@ -316,17 +237,6 @@ export default function AccountsScreen() {
         </Animated.ScrollView>
 
         {/* Modern SMS Transaction Modal */}
-        <SMSTransactionModal
-          visible={showSMSModal}
-          transactions={pendingTransactions} // Pass full array
-          currentIndex={currentSMSIndex}
-          onDismiss={handleSMSModalDismiss}
-          onNext={handleNextSMSTransaction}
-          onPrevious={handlePreviousSMSTransaction}
-          onSkipCurrent={handleSkipCurrentSMS}
-          onViewAll={handleViewAllSMSTransactions}
-          onAddNow={handleAddNowTransaction}
-        />
       </SafeAreaView>
     </>
   )

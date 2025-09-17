@@ -1,5 +1,5 @@
 // migrations/migration002.js
-import categoryService from "../../services/api/categoryService"
+import categories from "../../utility/categories"
 export const migration002 = {
   version: 2,
   name: "Seed default categories",
@@ -10,16 +10,17 @@ export const migration002 = {
 
     try {
       // Fetch default categories from backend
-      const response = await categoryService.getDefaultCategories()
-      console.log("ressponse from backend", response)
-      if (!response.success) {
-        throw new Error(`Failed to fetch default categories: ${response.error}`)
-      }
-      const defaultCategories = response.data.data || response.data
-      if (!Array.isArray(defaultCategories) || defaultCategories.length === 0) {
-        console.log("No default categories to seed.")
-        return
-      }
+      // const response = await categoryService.getDefaultCategories()
+      // console.log("ressponse from backend", response)
+      // if (!response.success) {
+      //   throw new Error(`Failed to fetch default categories: ${response.error}`)
+      // }
+      // const defaultCategories = response.data.data || response.data
+      // if (!Array.isArray(defaultCategories) || defaultCategories.length === 0) {
+      //   console.log("No default categories to seed.")
+      //   return
+      // }
+      let defaultCategories = categories
 
       const timestamp = Date.now()
 
