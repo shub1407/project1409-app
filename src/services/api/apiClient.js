@@ -24,7 +24,6 @@ class ApiClient {
     this.publicEndpoints = [
       ENDPOINTS.AUTH.LOGIN,
       ENDPOINTS.AUTH.REGISTER,
-      ENDPOINTS.AUTH.GOOGLE_LOGIN,
       ENDPOINTS.AUTH.FORGOT_PASSWORD,
       ENDPOINTS.AUTH.RESET_PASSWORD,
       "/health",

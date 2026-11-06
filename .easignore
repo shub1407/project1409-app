@@ -3,7 +3,9 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
+
+# Use Continuous Native Generation on EAS Build.
+/android
 
 # macOS / system files
 .DS_Store

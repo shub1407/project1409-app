@@ -173,8 +173,8 @@ export default function GroupsScreen() {
                 <Ionicons name="calendar-outline" size={20} color="#1CC29F" />
               </View>
               <View style={styles.launchText}>
-                <Text style={styles.launchLabel}>Expected Launch</Text>
-                <Text style={styles.launchDate}>October 2025</Text>
+                <Text style={styles.launchLabel}>Current Status</Text>
+                <Text style={styles.launchDate}>In Development</Text>
               </View>
             </View>
 

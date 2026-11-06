@@ -22,12 +22,11 @@ import { Logger } from "../../src/utility/logger"
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window")
 
 export default function LoginScreen() {
-  const { signIn, signInWithGoogle } = useAuth()
+  const { signIn } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [googleLoading, setGoogleLoading] = useState(false)
   const [emailFocused, setEmailFocused] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
 
@@ -144,25 +143,6 @@ export default function LoginScreen() {
       }
     }
     setLoading(false)
-  }
-
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true)
-    clearErrors()
-
-    const result = await signInWithGoogle()
-
-    if (result.success) {
-      router.replace("/users/home")
-    } else {
-      if (result.type === "SIGN_IN_CANCELLED") {
-        console.log("Google sign-in was cancelled")
-      } else {
-        setGeneralError(result.error || "Google sign in failed")
-        triggerShakeAnimation()
-      }
-    }
-    setGoogleLoading(false)
   }
 
   // Handle email input changes
@@ -291,7 +271,7 @@ export default function LoginScreen() {
                       autoCapitalize="none"
                       autoComplete="email"
                       autoCorrect={false}
-                      editable={!loading && !googleLoading}
+                      editable={!loading}
                       selectTextOnFocus={true}
                       returnKeyType="next"
                       onSubmitEditing={() => passwordRef.current?.focus()}
@@ -348,7 +328,7 @@ export default function LoginScreen() {
                       secureTextEntry={!showPassword}
                       autoComplete="password"
                       autoCorrect={false}
-                      editable={!loading && !googleLoading}
+                      editable={!loading}
                       selectTextOnFocus={true}
                       returnKeyType="done"
                       onSubmitEditing={handleLogin}
@@ -387,10 +367,10 @@ export default function LoginScreen() {
                 <TouchableOpacity
                   style={[
                     styles.loginButton,
-                    (loading || googleLoading) && styles.loginButtonDisabled,
+                    loading && styles.loginButtonDisabled,
                   ]}
                   onPress={handleLogin}
-                  disabled={loading || googleLoading}
+                  disabled={loading}
                   activeOpacity={0.8}
                 >
                   {loading ? (
@@ -408,46 +388,6 @@ export default function LoginScreen() {
 
               {/* Footer */}
               <View style={styles.footer}>
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                  <View style={styles.dividerTextContainer}>
-                    <Text style={styles.dividerText}>or continue with</Text>
-                  </View>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.googleButton,
-                    (loading || googleLoading) && styles.googleButtonDisabled,
-                  ]}
-                  activeOpacity={0.7}
-                  disabled={loading || googleLoading}
-                  onPress={handleGoogleSignIn}
-                >
-                  {googleLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <View style={styles.loadingSpinner}>
-                        <Ionicons name="refresh" size={18} color="#4285F4" />
-                      </View>
-                      <Text style={styles.googleButtonText}>Connecting...</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={styles.googleIconContainer}>
-                        <Ionicons
-                          name="logo-google"
-                          size={18}
-                          color="#4285F4"
-                        />
-                      </View>
-                      <Text style={styles.googleButtonText}>
-                        Continue with Google
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
                 <View style={styles.signupContainer}>
                   <Text style={styles.signupText}>Don't have an account? </Text>
                   <Link href="/(auth)/signup" asChild>
@@ -745,54 +685,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     paddingBottom: 30,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 32,
-    width: "100%",
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E2E8F0",
-  },
-  dividerTextContainer: {
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 16,
-  },
-  dividerText: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  googleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 56,
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 32,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  googleButtonDisabled: {
-    opacity: 0.6,
-  },
-  googleIconContainer: {
-    marginRight: 12,
-  },
-  googleButtonText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#334155",
   },
   signupContainer: {
     flexDirection: "row",

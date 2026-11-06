@@ -47,7 +47,6 @@ export default function SignupScreen() {
   const [confirmPasswordError, setConfirmPasswordError] = useState("")
   const [termsError, setTermsError] = useState("")
   const [generalError, setGeneralError] = useState("")
-  const [googleLoading, setGoogleLoading] = useState(false)
 
   // Refs for input focus
   const nameRef = useRef(null)
@@ -59,7 +58,7 @@ export default function SignupScreen() {
   // Animation values
   const shakeAnimation = useRef(new Animated.Value(0)).current
 
-  const { signIn, signUp, signInWithGoogle } = useAuth()
+  const { signIn, signUp } = useAuth()
 
   // Clear all errors
   const clearErrors = () => {
@@ -97,25 +96,6 @@ export default function SignupScreen() {
         useNativeDriver: true,
       }),
     ]).start()
-  }
-
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true)
-    clearErrors()
-
-    const result = await signInWithGoogle()
-
-    if (result.success) {
-      router.replace("/users/home")
-    } else {
-      if (result.type === "SIGN_IN_CANCELLED") {
-        console.log("Google sign-in was cancelled")
-      } else {
-        setGeneralError(result.error || "Google sign in failed")
-        triggerShakeAnimation()
-      }
-    }
-    setGoogleLoading(false)
   }
 
   const validatePhone = (phone) => {
@@ -701,46 +681,6 @@ export default function SignupScreen() {
 
               {/* Footer */}
               <View style={styles.footer}>
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                  <View style={styles.dividerTextContainer}>
-                    <Text style={styles.dividerText}>or continue with</Text>
-                  </View>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.googleButton,
-                    (loading || googleLoading) && styles.googleButtonDisabled,
-                  ]}
-                  activeOpacity={0.7}
-                  disabled={loading || googleLoading}
-                  onPress={handleGoogleSignIn}
-                >
-                  {googleLoading ? (
-                    <View style={styles.loadingContainer}>
-                      <View style={styles.loadingSpinner}>
-                        <Ionicons name="refresh" size={18} color="#4285F4" />
-                      </View>
-                      <Text style={styles.googleButtonText}>Connecting...</Text>
-                    </View>
-                  ) : (
-                    <>
-                      <View style={styles.googleIconContainer}>
-                        <Ionicons
-                          name="logo-google"
-                          size={18}
-                          color="#4285F4"
-                        />
-                      </View>
-                      <Text style={styles.googleButtonText}>
-                        Continue with Google
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
                 <View style={styles.loginContainer}>
                   <Text style={styles.loginText}>
                     Already have an account?{" "}
@@ -1121,51 +1061,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     paddingTop: 16,
-  },
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 24,
-    width: "100%",
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E2E8F0",
-  },
-  dividerTextContainer: {
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 12,
-  },
-  dividerText: {
-    color: "#64748B",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  googleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 50,
-    borderWidth: 2,
-    borderColor: "#E2E8F0",
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    marginBottom: 24,
-    width: "100%",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  googleIconContainer: {
-    marginRight: 10,
-  },
-  googleButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#334155",
   },
   loginContainer: {
     flexDirection: "row",

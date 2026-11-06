@@ -2,25 +2,28 @@
   "expo": {
     "name": "Koiny",
     "slug": "koiny",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "koiny",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.koiny.app"
     },
     "android": {
       "package": "com.koiny.app",
-      "versionCode": 4,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#1cc29f"
       },
-      "permissions": ["INTERNET", "VIBRATE"],
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "INTERNET",
+        "VIBRATE",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -38,12 +41,8 @@
           "backgroundColor": "#1cc29f"
         }
       ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.622393446179-5b1rdti5tut32gf9rvr7ibn8fkioamt3"
-        }
-      ]
+      "expo-secure-store",
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true

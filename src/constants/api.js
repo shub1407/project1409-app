@@ -2,9 +2,7 @@
 const LOCAL_IP = "192.168.56.1" // ✅ Replace with your actual IP
 
 export const API_CONFIG = {
-  BASE_URL: __DEV__
-    ? `http://${LOCAL_IP}:3000/api/v1`
-    : "https://api.koiny.in/api/v1",
+  BASE_URL: "https://sync-server-1409.vercel.app/api/v1",
 
   TIMEOUT: 15000,
   RETRY_ATTEMPTS: 3,
@@ -25,7 +23,6 @@ export const ENDPOINTS = {
     REFRESH: "/auth/refresh",
     FORGOT_PASSWORD: "/auth/forgot-password",
     RESET_PASSWORD: "/auth/reset-password",
-    GOOGLE_LOGIN: "/auth/google",
   },
   USER: {
     PROFILE: "/user/profile",
